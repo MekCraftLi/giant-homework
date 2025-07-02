@@ -87,7 +87,7 @@ static uint8_t cmd[] = {
  */
 OLEDErrCode oledInit(OLEDObjTypeDef* oledObj) {
     if (iicIntf.init(&oledIIC, IIC_HARDWARE_1, PORT_B, PIN_7, PORT_B, PIN_6, OLED_WIDTH * OLED_HEIGHT + 2, 1, 1000,
-                     300000) != IIC_SUCCESS) {
+                     400000) != IIC_SUCCESS) {
         return OLED_ERR;
     }
     timeServIntf.delayMs(200);

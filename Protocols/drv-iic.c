@@ -384,9 +384,7 @@ IICErrCode iicSend(IICObjTypeDef* iicObj) {
 
         for (uint16_t i = 1; i < iicObj->txLen; i++) {
             I2C_SendData(iicObj->i2c, iicObj->txBuffer[i]);
-            if (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
-                return IIC_ERR_NACK;
-            }
+            while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
         }
 
         I2C_GenerateSTOP(iicObj->i2c, ENABLE);
