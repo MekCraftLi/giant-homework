@@ -1,0 +1,17 @@
+*** Using Compiler 'V5.06 update 6 (build 750)', folder: 'C:\Software\Keil_v5\ARM\ARMCC\Bin'
+Build target 'Mini-Demo'
+compiling drv-iic.c...
+..\Protocols\drv-iic.c(102): warning:  #1293-D: assignment in condition
+      if (!(iicObj->txBuffer = (uint8_t*)malloc(txBufferSize))) {
+..\Protocols\drv-iic.c(105): warning:  #1293-D: assignment in condition
+      if (!(iicObj->rxBuffer = (uint8_t*)malloc(rxBufferSize))) {
+..\Protocols\drv-iic.c(182): warning:  #111-D: statement is unreachable
+      return IIC_ERR_PARAM;
+..\Protocols\drv-iic.c(413): warning:  #111-D: statement is unreachable
+      return IIC_ERR_PARAM;
+..\Protocols\drv-iic.c: 4 warnings, 0 errors
+linking...
+Program Size: Code=10336 RO-data=624 RW-data=188 ZI-data=41012  
+FromELF: creating hex file...
+".\Mini-OLED\Mini-Demo.axf" - 0 Error(s), 4 Warning(s).
+Build Time Elapsed:  00:00:02

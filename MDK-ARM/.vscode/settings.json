@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "gpio.h": "c",
+        "bsp-key.h": "c",
+        "bsp-delay.h": "c",
+        "tim.h": "c",
+        "main.h": "c",
+        "interrupt-request.h": "c",
+        "usart.h": "c",
+        "drv-usart.h": "c",
+        "drv-iic.h": "c",
+        "stdint.h": "c",
+        "systick.h": "c",
+        "timeserivce.h": "c",
+        "drv-oled.h": "c",
+        "graph-service.h": "c",
+        "dma.h": "c",
+        "stm32f10x_gpio.h": "c"
+    }
+}
