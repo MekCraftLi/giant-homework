@@ -43,8 +43,8 @@ typedef enum {
     IIC_ERR_BUSY           = 0x03, // 忙
     IIC_ERR_PARAM          = 0x04, // 参数错误
     IIC_ERR_MEM_ALLOC_FAIL = 0x05, // 内存申请失败
-	IIC_ERR_NSTART         = 0x06, // START错误
-	IIC_ERR_ADDR           = 0x07, // 访问地址失败
+    IIC_ERR_NSTART         = 0x06, // START错误
+    IIC_ERR_ADDR           = 0x07, // 访问地址失败
 } IICErrCode;
 
 /* 硬件或软件IIC实现 */
@@ -76,6 +76,8 @@ typedef struct {
 
     uint32_t speed; // 传输速度(bps)
 
+    uint8_t slaveAddr; // 从设备地址
+
     DMAObjTypeDef* dmaObj; // DMA对象指针，若使用DMA传输则不为NULL
 
 } IICObjTypeDef;
@@ -85,7 +87,7 @@ typedef struct {
     IICErrCode (*init)(IICObjTypeDef* iicObj, IICImplTypeEnum type, GPIOPortEnum SDA, GPIOPinEnum SDA_Pin,
                        GPIOPortEnum SCL, GPIOPinEnum SCL_Pin, uint16_t txBufferSize, uint16_t rxBufferSize,
                        uint16_t timeoutMs, uint32_t speed);
-    IICErrCode (*send)(IICObjTypeDef* iicObj);
+    IICErrCode (*transmit)(IICObjTypeDef* iicObj);
     IICErrCode (*equippedWithDMA)(IICObjTypeDef*);
     IICErrCode (*sendWithDMA)(IICObjTypeDef* iicObj);
 } IICIntfTypeDef;

@@ -33,6 +33,7 @@
 
 /* ------- define ----------------------------------------------------------------------------------------------------*/
 
+#define TIMEOUT 0
 
 
 
@@ -60,7 +61,7 @@ IICErrCode iicSendWithDMA(IICObjTypeDef* iicObj);
 
 IICIntfTypeDef iicIntf = {
     .init            = iicInit,
-    .send            = iicSend,
+    .transmit        = iicSend,
     .equippedWithDMA = iicTxEquipWithDMA,
     .sendWithDMA     = iicSendWithDMA,
 };
@@ -140,8 +141,9 @@ IICErrCode iicInit(IICObjTypeDef* iicObj, IICImplTypeEnum type, GPIOPortEnum SDA
         /* 2. 使能时钟 */
         iicObj->type = type; // 设置IIC类型为硬件IIC
 
-        gpioIntf.pinInit(SDA, SDA_Pin, ALT_OUTPUT_OPEN_DRAIN);
         gpioIntf.pinInit(SCL, SCL_Pin, ALT_OUTPUT_OPEN_DRAIN);
+        gpioIntf.pinInit(SDA, SDA_Pin, ALT_OUTPUT_OPEN_DRAIN);
+
 
 
         if (type == IIC_HARDWARE_1) {
@@ -157,13 +159,9 @@ IICErrCode iicInit(IICObjTypeDef* iicObj, IICImplTypeEnum type, GPIOPortEnum SDA
         if (speed > 100000) {
             RCC_PCLK1Config(RCC_HCLK_Div2);
         }
-		
-		I2C_SoftwareResetCmd(iicObj->i2c, ENABLE);
-		I2C_SoftwareResetCmd(iicObj->i2c, DISABLE);
 
-
-
-
+        I2C_SoftwareResetCmd(iicObj->i2c, ENABLE);
+        I2C_SoftwareResetCmd(iicObj->i2c, DISABLE);
 
         I2C_InitTypeDef i2cstruct;
         i2cstruct.I2C_Mode                = I2C_Mode_I2C;
@@ -173,7 +171,7 @@ IICErrCode iicInit(IICObjTypeDef* iicObj, IICImplTypeEnum type, GPIOPortEnum SDA
         i2cstruct.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
         i2cstruct.I2C_ClockSpeed          = speed;
         I2C_Init(I2C1, &i2cstruct);
-		
+
         I2C_Cmd(I2C1, ENABLE);
 
         return IIC_SUCCESS;
@@ -279,15 +277,15 @@ static IICErrCode iicWaitAck(IICObjTypeDef* iicObj) {
  * @param iicObj
  * @return IICErrCode
  */
-static IICErrCode iicSendByte(IICObjTypeDef* iicObj) {
+static IICErrCode iicSendByte(IICObjTypeDef* iicObj, uint8_t byte) {
     GPIOPortEnum DPort = iicObj->SDAPort;
     GPIOPortEnum CPort = iicObj->SCLPort;
     GPIOPinEnum DPin   = iicObj->SDAPin;
     GPIOPinEnum CPin   = iicObj->SCLPin;
 
     for (uint8_t i = 0; i < 8; i++) {
-        gpioIntf.pinWrite(DPort, DPin, (GPIOPinStateEnum)((iicObj->txBuffer[iicObj->txIndex] & 0x80) != 0));
-        iicObj->txBuffer[iicObj->txIndex] <<= 1;
+        gpioIntf.pinWrite(DPort, DPin, (GPIOPinStateEnum)((byte & 0x80) != 0));
+        byte <<= 1;
 
         iicDelay(iicObj);
 
@@ -302,98 +300,112 @@ static IICErrCode iicSendByte(IICObjTypeDef* iicObj) {
 }
 
 /**
- *@brief IIC发送数据
- *
+ * @brief IIC发送数据
+ * @note 发送IIC数据前赋值slaveAddr, 给发送缓冲区txBuffer填充数据，并指明发送长度txLen。
  * @param iicObj
  * @return IICErrCode
  */
-
-void I2C_ReleaseBus(void) {
-    GPIO_InitTypeDef GPIO_InitStructure;
-
-    // 1. 禁用 I2C 外设
-    I2C_Cmd(I2C1, DISABLE);
-
-    // 2. 配置SCL和SDA为普通推挽输出
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_OD;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_7;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-    // 3. 模拟产生若干 SCL 脉冲释放SDA
-    for (int i = 0; i < 9; i++) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_6);
-        for (volatile int j = 0; j < 100; j++)
-            ;
-        GPIO_ResetBits(GPIOB, GPIO_Pin_6);
-        for (volatile int j = 0; j < 100; j++)
-            ;
-    }
-
-    // 4. 发送Stop条件
-    GPIO_SetBits(GPIOB, GPIO_Pin_6); // SCL high
-    GPIO_SetBits(GPIOB, GPIO_Pin_7); // SDA high
-
-    // 5. 恢复GPIO为I2C复用开漏
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-    // 6. 重新使能 I2C 外设
-    I2C_Cmd(I2C1, ENABLE);
-}
-
-
 IICErrCode iicSend(IICObjTypeDef* iicObj) {
+
+    // 检查参数有效性
     if (iicObj == NULL || iicObj->txBuffer == NULL || iicObj->txLen == 0) {
         return IIC_ERR_PARAM;
     }
     if (iicObj->type == IIC_SOFTWARE) {
+
+        /* 软件IIC通信 */
+
+        // 1.发送START
         IICErrCode status = iicStart(iicObj);
 
         if (status != IIC_SUCCESS) {
             return status;
         }
 
+        // 2.发送从设备地址并检查ACK
+        status = iicSendByte(iicObj, iicObj->slaveAddr | 0); // 发送地址，最低位为0表示写操作
+        if (status != IIC_SUCCESS) {
+            iicStop(iicObj); // 发送STOP信号
+            return status;   // 返回错误
+        }
+
+        // 3. 发送数据并检查ACK
         for (iicObj->txIndex = 0; iicObj->txIndex < iicObj->txLen; iicObj->txIndex++) {
 
-            status = iicSendByte(iicObj);
+            status = iicSendByte(iicObj, iicObj->txBuffer[iicObj->txIndex]);
 
             if (status != IIC_SUCCESS) {
+                iicStop(iicObj); // 发送STOP信号
                 break;
             }
         }
+
+        // 4. 发送STOP信号
         iicStop(iicObj);
+
         return status;
+
     } else {
 
-        uint8_t clockPin = gpioIntf.pinRead(PORT_B, PIN_6);
-        uint8_t dataPin  = gpioIntf.pinRead(PORT_B, PIN_7);
+        /* 硬件IIC通信 */
 
-        I2C_GenerateSTART(iicObj->i2c, ENABLE); // 发送START信号
-        while(!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_MODE_SELECT));
+        float startTime;
+        float timeDiff;
 
-        I2C_Send7bitAddress(iicObj->i2c, iicObj->txBuffer[0], I2C_Direction_Transmitter);
-        iicObj->txLen--;
+        // 1. 检查IIC是否忙碌
+        I2C_GenerateSTART(iicObj->i2c, ENABLE);
 
+        startTime = timeServIntf.getGlobalTime(); // 获取当前时间
+        while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_MODE_SELECT)) {
+#if TIMEOUT
+            timeDiff = timeServIntf.getGlobalTime() - startTime; // 计算时间差
+            if (timeDiff > iicObj->timeoutUs / 1000.0f) {        // 如果超过超时时间
+                I2C_GenerateSTOP(iicObj->i2c, ENABLE);           // 发送STOP信号
+                return IIC_ERR_BUSY;                             // 返回总线繁忙
+            }
+#endif
+        }
+
+        // 2.发送从设备地址并检查ACK
+        I2C_Send7bitAddress(iicObj->i2c, iicObj->slaveAddr, I2C_Direction_Transmitter);
+
+        startTime = timeServIntf.getGlobalTime(); // 获取当前时间
         while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
+#if TIMEOUT
+            timeDiff = timeServIntf.getGlobalTime() - startTime; // 计算时间差
+            if (timeDiff > iicObj->timeoutUs / 1000.0f) {        // 如果超过超时时间
+                I2C_GenerateSTOP(iicObj->i2c, ENABLE);           // 发送STOP信号
+                return IIC_ERR_NACK;                             // 返回NACK错误
+
+            }
+#endif
         }
 
 
-
-        for (uint16_t i = 1; i < iicObj->txLen; i++) {
+        // 3.发送数据
+        for (uint16_t i = 0; i < iicObj->txLen; i++) {
             I2C_SendData(iicObj->i2c, iicObj->txBuffer[i]);
-            while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
+
+            startTime = timeServIntf.getGlobalTime(); // 获取当前时间
+            while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
+#if TIMEOUT
+                timeDiff = timeServIntf.getGlobalTime() - startTime; // 计算时间差
+                if (timeDiff > iicObj->timeoutUs / 1000.0f) {        // 如果超过超时时间
+                    I2C_GenerateSTOP(iicObj->i2c, ENABLE);           // 发送STOP信号
+                    return IIC_ERR_TIMEOUT;                          // 响应超时
+
+                }
+#endif
+            }
         }
 
+        // 4.发送STOP停止传输
         I2C_GenerateSTOP(iicObj->i2c, ENABLE);
 
         return IIC_SUCCESS;
     }
     return IIC_ERR_PARAM;
 }
-
 
 
 /**

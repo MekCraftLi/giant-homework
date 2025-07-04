@@ -25,7 +25,10 @@
 
 /*-------- includes --------------------------------------------------------------------------------------------------*/
 
+#include "../Peripherals/dma.h"
 #include "../Peripherals/systick.h"
+#include "../Peripherals/tim.h"
+
 
 
 
@@ -34,9 +37,11 @@
 
 /* 时间服务对外接口 */
 typedef struct {
+    void (*servInit)(void);
     void (*delayUs)(uint32_t us);
     void (*delayMs)(uint32_t ms);
     void (*delaySec)(uint32_t sec);
+    float (*getGlobalTime)(void);
 } TimeServIntfTypeDef;
 
 

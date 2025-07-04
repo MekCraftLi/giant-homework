@@ -7,7 +7,7 @@
  ***********************************************************************************************************************
  * @attention
  *
- * None
+ * 主函数所在文件，调用所有的应用
  *
  ***********************************************************************************************************************
  **/
@@ -48,6 +48,9 @@
 /* ------- variables -------------------------------------------------------------------------------------------------*/
 
 uint16_t debug_errCnt;
+float mainLoopTime = 0.0f; // 主循环时间
+float sysTime = 0.0f; // 系统时间
+
 
 
 
@@ -60,20 +63,32 @@ uint16_t debug_errCnt;
 
 /* ------- function implement ----------------------------------------------------------------------------------------*/
 
+/**
+ * @brief 主函数入口
+ *
+ * @return int
+ */
 int main(void) {
+
+    /* ------ local variables ------------------------------------------------*/
     // OLED对象
     OLEDObjTypeDef oledObj;
 
-    // USART对象
-    USARTObjTypeDef usartObj;
-    // 图形缓冲区
+    float mainLoopStartTime = 0.0f; // 主循环开始时间
+
+
+    /* ----- drivers & service initialize ------------------------------------*/
+
+    // 初始化时间服务
+    timeServIntf.servInit();
 
     // 初始化OLED对象
     while (oledIntf.init(&oledObj) != OLED_SUCCESS)
         ;
-	
-	oledIntf.cmd(&oledObj);
 
+    oledIntf.cmd(&oledObj);
+
+    /* ----- applications initialize -----------------------------------------*/
 
     // 显示图形
     if (oledIntf.clear(&oledObj) != OLED_SUCCESS) {
@@ -89,16 +104,22 @@ int main(void) {
     }
 
 
+    /* ----- main loop -------------------------------------------------------*/
 
     while (1) {
-		IICErrCode iicErr = oledIntf.fill(&oledObj);
+        sysTime = mainLoopStartTime  = timeServIntf.getGlobalTime(); // 获取主循环开始时间
 		
-		timeServIntf.delayMs(300);
+		drawStar(oledObj.graphicsBuffer);
+        OLEDErrCode iicErr = oledIntf.draw(&oledObj);
 
-		iicErr = oledIntf.clear(&oledObj);
+        timeServIntf.delayUs(2);
+
+        iicErr = oledIntf.clear(&oledObj);
+
+        timeServIntf.delayUs(2);
 		
-		timeServIntf.delayMs(300);
 
+        mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
     }
 
     return 0;

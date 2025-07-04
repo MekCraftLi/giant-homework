@@ -86,28 +86,35 @@ static uint8_t cmd[] = {
  * @return OLEDErrCode
  */
 OLEDErrCode oledInit(OLEDObjTypeDef* oledObj) {
+
+    // 初始化IIC对象
+    // 硬件IIC1
+    // 数据线SDA连接到PB7
+    // 时钟线SCL连接到PB6
+    // 发送缓冲区大小1025(更新一帧图像需要的最大字节数)
+    // 接收缓冲区大小1(不需要接收数据)
+    // 超时时间1000ms
+    // 传输速度400kHz(快速IIC)
     if (iicIntf.init(&oledIIC, IIC_HARDWARE_1, PORT_B, PIN_7, PORT_B, PIN_6, OLED_WIDTH * OLED_HEIGHT + 2, 1, 1000,
                      400000) != IIC_SUCCESS) {
         return OLED_ERR;
     }
+
     timeServIntf.delayMs(200);
 
-    oledObj->iic = &oledIIC;
-
-
-
+    oledObj->iic            = &oledIIC;
+    oledObj->iic->slaveAddr = 0x78; // OLED的IIC地址
 
     return OLED_SUCCESS;
 }
 
 OLEDErrCode oledCmd(OLEDObjTypeDef* oledObj) {
     /* 往IIC对象的发送缓冲区写入数据*/
-    oledIIC.txBuffer[0] = 0x78;
-    oledIIC.txBuffer[1] = 0x00;
-    memcpy(oledIIC.txBuffer + 2, cmd, sizeof(cmd));
-    oledIIC.txLen = sizeof(cmd) + 2;
+    oledIIC.txBuffer[0] = 0x00;
+    memcpy(oledIIC.txBuffer + 1, cmd, sizeof(cmd));
+    oledIIC.txLen = sizeof(cmd) + 1;
 
-    if (iicIntf.send(&oledIIC) != IIC_SUCCESS) {
+    if (iicIntf.transmit(&oledIIC) != IIC_SUCCESS) {
         return OLED_ERR;
     }
     return OLED_SUCCESS;
@@ -120,11 +127,10 @@ OLEDErrCode oledCmd(OLEDObjTypeDef* oledObj) {
  * @return OLEDErrCode
  */
 OLEDErrCode oledDraw(OLEDObjTypeDef* oledObj) {
-    oledIIC.txBuffer[0] = 0x78;
-    oledIIC.txBuffer[1] = 0x40;
-    memcpy(oledIIC.txBuffer + 2, oledObj->graphicsBuffer, OLED_HEIGHT * OLED_WIDTH);
-    oledIIC.txLen = OLED_HEIGHT * OLED_WIDTH + 2;
-    return iicIntf.send(&oledIIC) == IIC_SUCCESS ? OLED_SUCCESS : OLED_ERR;
+    oledIIC.txBuffer[0] = 0x40;
+    memcpy(oledIIC.txBuffer + 1, oledObj->graphicsBuffer, OLED_HEIGHT * OLED_WIDTH);
+    oledIIC.txLen = OLED_HEIGHT * OLED_WIDTH + 1;
+    return iicIntf.transmit(&oledIIC) == IIC_SUCCESS ? OLED_SUCCESS : OLED_ERR;
 }
 
 /**

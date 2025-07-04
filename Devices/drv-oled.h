@@ -7,7 +7,7 @@
  ***********************************************************************************************************************
  * @attention
  *
- * None
+ * OLED对象具有IIC对象和图形缓冲区两个属性
  *
  ***********************************************************************************************************************
  **/
@@ -55,7 +55,7 @@ typedef struct {
     OLEDErrCode (*draw)(OLEDObjTypeDef*);
     OLEDErrCode (*init)(OLEDObjTypeDef*);
     OLEDErrCode (*fill)(OLEDObjTypeDef*);
-	OLEDErrCode (*cmd)(OLEDObjTypeDef*);
+    OLEDErrCode (*cmd)(OLEDObjTypeDef*);
 } OLEDIntfTypeDef;
 
 
