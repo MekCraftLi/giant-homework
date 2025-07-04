@@ -54,6 +54,7 @@ OLEDErrCode oledDraw(OLEDObjTypeDef*);
 OLEDErrCode oledInit(OLEDObjTypeDef*);
 OLEDErrCode oledCmd(OLEDObjTypeDef*);
 OLEDErrCode oledFill(OLEDObjTypeDef*);
+OLEDErrCode oledDrawLoop(OLEDObjTypeDef*);
 
 
 
@@ -62,7 +63,7 @@ OLEDErrCode oledFill(OLEDObjTypeDef*);
 
 OLEDIntfTypeDef oledIntf = {
     .clear = oledClear,
-    .draw  = oledDraw,
+    .draw  = oledDrawLoop,
     .cmd   = oledCmd,
     .init  = oledInit,
     .fill  = oledFill,
@@ -97,6 +98,10 @@ OLEDErrCode oledInit(OLEDObjTypeDef* oledObj) {
     // 传输速度400kHz(快速IIC)
     if (iicIntf.init(&oledIIC, IIC_HARDWARE_1, PORT_B, PIN_7, PORT_B, PIN_6, OLED_WIDTH * OLED_HEIGHT + 2, 1, 1000,
                      400000) != IIC_SUCCESS) {
+        return OLED_ERR;
+    }
+
+    if (iicIntf.equippedWithDMA(&oledIIC) != IIC_SUCCESS) {
         return OLED_ERR;
     }
 
@@ -153,4 +158,17 @@ OLEDErrCode oledClear(OLEDObjTypeDef* oledObj) {
 OLEDErrCode oledFill(OLEDObjTypeDef* oledObj) {
     memset(oledObj->graphicsBuffer, 0xFF, OLED_HEIGHT * OLED_WIDTH);
     return oledDraw(oledObj);
+}
+
+/**
+ * @brief oledDrawLoop 开启OLED发送循环
+ *
+ * @param oledObj
+ * @return OLEDErrCode
+ */
+OLEDErrCode oledDrawLoop(OLEDObjTypeDef* oledObj) {
+    oledIIC.txBuffer[0] = 0x40;
+    memcpy(oledIIC.txBuffer + 1, oledObj->graphicsBuffer, OLED_HEIGHT * OLED_WIDTH);
+    oledIIC.txLen = OLED_HEIGHT * OLED_WIDTH + 1;
+    return iicIntf.transmitWithDMA(&oledIIC) == IIC_SUCCESS ? OLED_SUCCESS : OLED_ERR;
 }

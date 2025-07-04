@@ -57,12 +57,12 @@ typedef struct {
     DMA_Channel_TypeDef* channel; // DMA通道
     uint32_t srcAddr;             // 源地址
     DMASizeEnum srcSize;          // 源数据大小
-    uint8_t srcLen;               // 源数据长度
+    uint16_t srcLen;              // 源数据长度
     DMAAddrTypeEnum srcAddrType;  // 源地址类型
 
     uint32_t dstAddr;            // 目的地址
     DMASizeEnum dstSize;         // 目的数据大小
-    uint8_t dstLen;              // 目的数据长度
+    uint16_t dstLen;             // 目的数据长度
     DMAAddrTypeEnum dstAddrType; // 目的地址类型
 
     uint32_t CPAR;  // 外设地址
@@ -72,6 +72,8 @@ typedef struct {
     uint8_t cycleMode; // 循环模式
 
     uint32_t priority; // 优先级
+
+    void (*callback)(void*); // 回调函数指针
 } DMAObjTypeDef;
 
 
@@ -94,12 +96,13 @@ typedef struct {
 
 typedef struct {
     DMAErrCode (*init)(DMAObjTypeDef* dmaObj, DMA_Channel_TypeDef* channel, uint32_t priority);
-    DMAErrCode (*setSorce)(DMAObjTypeDef*, uint32_t srcAddr, DMASizeEnum srcSize, uint8_t srcLen);
-    DMAErrCode (*setSorceCycle)(DMAObjTypeDef*, uint32_t srcAddr, DMASizeEnum srcSize, uint8_t srcLen);
-    DMAErrCode (*setDest)(DMAObjTypeDef*, uint32_t dstAddr, DMASizeEnum , uint8_t dstLen);
+    DMAErrCode (*setSorce)(DMAObjTypeDef*, uint32_t srcAddr, DMASizeEnum srcSize, uint16_t srcLen);
+    DMAErrCode (*setSorceCycle)(DMAObjTypeDef*, uint32_t srcAddr, DMASizeEnum srcSize, uint16_t srcLen);
+    DMAErrCode (*setDest)(DMAObjTypeDef*, uint32_t dstAddr, DMASizeEnum, uint8_t dstLen);
     DMAErrCode (*start)(DMAObjTypeDef* dmaObj);
     DMAErrCode (*stop)(DMAObjTypeDef* dmaObj);
     DMAErrCode (*reset)(DMAObjTypeDef* dmaObj);
+    DMAErrCode (*configISR)(DMAObjTypeDef* dmaObj);
 } DMAIntfTypeDef;
 
 

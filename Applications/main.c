@@ -22,6 +22,7 @@
 #include "../Services/graph-service.h"
 #include "../Services/time-service.h"
 #include "main.h"
+#include <string.h>
 
 
 
@@ -49,8 +50,9 @@
 
 uint16_t debug_errCnt;
 float mainLoopTime = 0.0f; // 主循环时间
-float sysTime = 0.0f; // 系统时间
-
+float sysTime      = 0.0f; // 系统时间
+static OLEDObjTypeDef oledObj;
+static uint8_t iicDMABufIdx = 0;
 
 
 
@@ -71,8 +73,9 @@ float sysTime = 0.0f; // 系统时间
 int main(void) {
 
     /* ------ local variables ------------------------------------------------*/
-    // OLED对象
-    OLEDObjTypeDef oledObj;
+    // TIM对象
+    TIMObjTypeDef timFlashOLED;
+
 
     float mainLoopStartTime = 0.0f; // 主循环开始时间
 
@@ -88,39 +91,60 @@ int main(void) {
 
     oledIntf.cmd(&oledObj);
 
+    oledIntf.draw(&oledObj);
+
+    timIntf.init(&timFlashOLED, TIM6);
+    timIntf.setFrequency(&timFlashOLED, 30);
+    timIntf.enableISR(&timFlashOLED);
+
     /* ----- applications initialize -----------------------------------------*/
 
-    // 显示图形
-    if (oledIntf.clear(&oledObj) != OLED_SUCCESS) {
-        debug_errCnt++;
-    }
-
-
-    // 绘制五角星
-    drawStar(oledObj.graphicsBuffer);
-
-    if (oledIntf.draw(&oledObj) != OLED_SUCCESS) {
-        debug_errCnt++;
-    }
 
 
     /* ----- main loop -------------------------------------------------------*/
 
     while (1) {
-        sysTime = mainLoopStartTime  = timeServIntf.getGlobalTime(); // 获取主循环开始时间
-		
-		drawStar(oledObj.graphicsBuffer);
-        OLEDErrCode iicErr = oledIntf.draw(&oledObj);
+        sysTime = mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
 
-        timeServIntf.delayUs(2);
 
-        iicErr = oledIntf.clear(&oledObj);
-
-        timeServIntf.delayUs(2);
-		
-
-        mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
+        mainLoopTime                = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
     }
 
     return 0;
+}
+
+
+/**
+ * @brief DMA1通道6中断处理函数
+ *
+ * @return void
+ */
+void DMA1_Channel6_IRQHandler(void) {
+    if (DMA_GetITStatus(DMA1_IT_TC6)) {     // 检查DMA1通道6传输完成中断
+        DMA_ClearITPendingBit(DMA1_IT_TC6); // 清除中断标志
+        DMA_Cmd(DMA1_Channel6, DISABLE);    // 禁用DMA通道6
+        I2C_DMACmd(I2C1, DISABLE);
+    }
+}
+
+
+/**
+ * @brief TIM6中断处理函数
+ *
+ * @return void
+ */
+void TIM6_IRQHandler(void) {
+    if (TIM_GetITStatus(TIM6, TIM_IT_Update)) {
+        TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
+        sysTime = timeServIntf.getGlobalTime();
+        if (iicDMABufIdx == 0) {
+            DMA1_Channel6->CMAR = (uint32_t)oledObj.graphicsBuffer;
+        } else {
+            DMA1_Channel6->CMAR = (uint32_t)oledObj.iic->txBuffer;
+        }
+        DMA1_Channel6->CNDTR = 1024;
+        I2C_DMACmd(I2C1, ENABLE);
+        DMA_Cmd(DMA1_Channel6, ENABLE);
+        TIM_Cmd(TIM6, ENABLE);
+    }
 }

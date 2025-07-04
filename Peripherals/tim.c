@@ -116,9 +116,6 @@ static TIMErrCode timCalcARRPSC(uint32_t clkFreq, uint32_t targetFreq, uint32_t*
 
     uint32_t totalDiv = clkFreq / targetFreq; // 计算总分频系数
 
-    if (totalDiv < 1 || totalDiv > 65535) {
-        return TIM_ERR_PARAM; // 分频系数超出范围
-    }
 
     *psc = (uint16_t)(sqrt(totalDiv));
     *arr = (uint16_t)(totalDiv / (*psc) - 1);

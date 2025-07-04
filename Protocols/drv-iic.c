@@ -63,7 +63,7 @@ IICIntfTypeDef iicIntf = {
     .init            = iicInit,
     .transmit        = iicSend,
     .equippedWithDMA = iicTxEquipWithDMA,
-    .sendWithDMA     = iicSendWithDMA,
+    .transmitWithDMA = iicSendWithDMA,
 };
 
 extern uint16_t debug_errCnt;
@@ -348,9 +348,11 @@ IICErrCode iicSend(IICObjTypeDef* iicObj) {
     } else {
 
         /* 硬件IIC通信 */
-
         float startTime;
+#if TIMEOUT
+
         float timeDiff;
+#endif
 
         // 1. 检查IIC是否忙碌
         I2C_GenerateSTART(iicObj->i2c, ENABLE);
@@ -376,7 +378,6 @@ IICErrCode iicSend(IICObjTypeDef* iicObj) {
             if (timeDiff > iicObj->timeoutUs / 1000.0f) {        // 如果超过超时时间
                 I2C_GenerateSTOP(iicObj->i2c, ENABLE);           // 发送STOP信号
                 return IIC_ERR_NACK;                             // 返回NACK错误
-
             }
 #endif
         }
@@ -393,7 +394,6 @@ IICErrCode iicSend(IICObjTypeDef* iicObj) {
                 if (timeDiff > iicObj->timeoutUs / 1000.0f) {        // 如果超过超时时间
                     I2C_GenerateSTOP(iicObj->i2c, ENABLE);           // 发送STOP信号
                     return IIC_ERR_TIMEOUT;                          // 响应超时
-
                 }
 #endif
             }
@@ -404,7 +404,6 @@ IICErrCode iicSend(IICObjTypeDef* iicObj) {
 
         return IIC_SUCCESS;
     }
-    return IIC_ERR_PARAM;
 }
 
 
@@ -439,6 +438,7 @@ IICErrCode iicTxEquipWithDMA(IICObjTypeDef* obj) {
     dmaIntf.init(obj->dmaObj, obj->dmaObj->channel, DMA_Priority_Medium);
     dmaIntf.setSorce(obj->dmaObj, (uint32_t)obj->txBuffer, DMA_SIZE_BYTE, obj->txBufferSize);
     dmaIntf.setDest(obj->dmaObj, (uint32_t)&I2C1->DR, DMA_SIZE_BYTE, 1); // 目的地址为I2C数据寄存器
+    dmaIntf.configISR(obj->dmaObj);
 
     return IIC_SUCCESS;
 }
@@ -464,6 +464,21 @@ IICErrCode iicSendWithDMA(IICObjTypeDef* iicObj) {
     if (iicObj->txLen > iicObj->txBufferSize) {
         return IIC_ERR_PARAM; // 发送长度超过缓冲区大小
     }
+
+    //    if (iicObj->type == IIC_HARDWARE_1) {
+    //        if (DMA_GetFlagStatus(DMA1_FLAG_TC6) == RESET) {
+    //            return IIC_ERR_BUSY; // DMA未准备好
+    //        };
+    //    } else if (iicObj->type == IIC_HARDWARE_2) {
+    //        if (DMA_GetFlagStatus(DMA1_FLAG_TC7) == RESET) {
+    //            return IIC_ERR_BUSY; // DMA未准备好
+    //        };
+    //    } else {
+    //        return IIC_ERR_PARAM; // 无效的IIC类型
+    //    }
+
+
+
     while (I2C_GetFlagStatus(iicObj->i2c, I2C_FLAG_BUSY))
         ;
 
@@ -472,28 +487,28 @@ IICErrCode iicSendWithDMA(IICObjTypeDef* iicObj) {
     while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_MODE_SELECT))
         ; // 等待START信号发送完成
 
-    I2C_Send7bitAddress(iicObj->i2c, iicObj->txBuffer[0], I2C_Direction_Transmitter); // 发送从设备地址
+    I2C_Send7bitAddress(iicObj->i2c, iicObj->slaveAddr, I2C_Direction_Transmitter); // 发送从设备地址
     while (!I2C_CheckEvent(iicObj->i2c, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED))
         ; // 等待从设备地址发送完成
 
 
-    dmaIntf.start(iicObj->dmaObj); // 启动DMA传输
 
-    I2C_DMACmd(iicObj->i2c, ENABLE); // 使能IIC的DMA传输
+
+    dmaIntf.setSorce(iicObj->dmaObj, (uint32_t)iicObj->txBuffer, DMA_SIZE_BYTE, iicObj->txLen);
+    dmaIntf.setDest(iicObj->dmaObj, (uint32_t)&iicObj->i2c->DR, DMA_SIZE_BYTE, 1);
+    dmaIntf.start(iicObj->dmaObj);   // 启动DMA传输
+    I2C_DMACmd(iicObj->i2c, ENABLE); // 使能IIC的DMA功能
 
 
     if (iicObj->type == IIC_HARDWARE_1) {
-        while (!DMA_GetFlagStatus(DMA1_FLAG_TC6))
-            ;                         // 等待DMA传输完成
+
         DMA_ClearFlag(DMA1_FLAG_TC6); // 清除DMA传输完成标志
     } else if (iicObj->type == IIC_HARDWARE_2) {
-        while (!DMA_GetFlagStatus(DMA1_FLAG_TC7))
-            ;
+
         DMA_ClearFlag(DMA1_FLAG_TC7); // 清除DMA传输完成标志
     }
-    I2C_GenerateSTOP(iicObj->i2c, ENABLE); // 发送STOP信号
 
-    iicObj->dmaObj->channel->CNDTR = iicObj->txLen;
+
 
     return IIC_SUCCESS;
 }

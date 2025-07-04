@@ -89,7 +89,7 @@ typedef struct {
                        uint16_t timeoutMs, uint32_t speed);
     IICErrCode (*transmit)(IICObjTypeDef* iicObj);
     IICErrCode (*equippedWithDMA)(IICObjTypeDef*);
-    IICErrCode (*sendWithDMA)(IICObjTypeDef* iicObj);
+    IICErrCode (*transmitWithDMA)(IICObjTypeDef* iicObj);
 } IICIntfTypeDef;
 
 

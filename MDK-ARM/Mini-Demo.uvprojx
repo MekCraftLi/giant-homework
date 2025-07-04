@@ -389,6 +389,16 @@
               <FileType>1</FileType>
               <FilePath>..\Applications\main.c</FilePath>
             </File>
+            <File>
+              <FileName>app-input.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\app-input.c</FilePath>
+            </File>
+            <File>
+              <FileName>app-ui.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\app-ui.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

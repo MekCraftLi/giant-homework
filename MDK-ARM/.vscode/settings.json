@@ -17,6 +17,8 @@
         "dma.h": "c",
         "stm32f10x_gpio.h": "c",
         "stm32f10x.h": "c",
-        "time-service.h": "c"
+        "time-service.h": "c",
+        "stddef.h": "c",
+        "app-ui.h": "c"
     }
 }
