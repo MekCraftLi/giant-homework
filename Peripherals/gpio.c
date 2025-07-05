@@ -337,7 +337,7 @@ GPIOErrCode pinToggle(GPIOPortEnum port, GPIOPinEnum pin) {
         return PORT_NOT_EXIST;
     }
 
-    debug_addr = !BIT_ADDR(GPIOx + IDR_OFFSET, pin);
+    debug_addr                        = !BIT_ADDR(GPIOx + IDR_OFFSET, pin);
 
 
     BIT_ADDR(GPIOx + ODR_OFFSET, pin) = !BIT_ADDR(GPIOx + IDR_OFFSET, pin);

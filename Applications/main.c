@@ -51,16 +51,16 @@
 
 uint16_t debug_errCnt;
 float mainLoopTime = 0.0f; // 主循环时间
-float sysTime      = 0.0f; // 系统时间
 static OLEDObjTypeDef oledObj;
 static uint8_t iicDMABufIdx = 0;
-
+UIAppParamTypeDef uiAppParam; // UI应用参数
+static uint8_t txFinished;    // OLED发送完成
 
 
 
 /* ------- function prototypes ---------------------------------------------------------------------------------------*/
 
-static void uiParamUpdate(uiAppParamTypeDef*);
+static void uiParamUpdate(UIAppParamTypeDef*);
 
 
 
@@ -77,7 +77,7 @@ int main(void) {
     /* ------ local variables ------------------------------------------------*/
     // TIM对象
     TIMObjTypeDef timFlashOLED;
-    uiAppParamTypeDef uiAppParam; // UI应用参数
+
 
 
     float mainLoopStartTime = 0.0f; // 主循环开始时间
@@ -124,14 +124,10 @@ int main(void) {
     /* ----- main loop -------------------------------------------------------*/
 
     while (1) {
-        sysTime = mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
+        mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
 
         // 参数更新
         uiParamUpdate(&uiAppParam);
-
-
-
-
 
         // 调用应用
         uiAppLoop(&uiAppParam);
@@ -155,6 +151,7 @@ void DMA1_Channel6_IRQHandler(void) {
         DMA_ClearITPendingBit(DMA1_IT_TC6); // 清除中断标志
         DMA_Cmd(DMA1_Channel6, DISABLE);    // 禁用DMA通道6
         I2C_DMACmd(I2C1, DISABLE);
+        txFinished = 1;
     }
 }
 
@@ -167,28 +164,36 @@ void DMA1_Channel6_IRQHandler(void) {
 void TIM6_IRQHandler(void) {
     if (TIM_GetITStatus(TIM6, TIM_IT_Update)) {
         TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
-        sysTime = timeServIntf.getGlobalTime();
+
+
         if (iicDMABufIdx == 0) {
             DMA1_Channel6->CMAR = (uint32_t)oledObj.graphicsBuffer;
         } else {
             DMA1_Channel6->CMAR = (uint32_t)oledObj.iic->txBuffer;
         }
+
         DMA1_Channel6->CNDTR = 1024;
+        txFinished           = 0;
         I2C_DMACmd(I2C1, ENABLE);
         DMA_Cmd(DMA1_Channel6, ENABLE);
         TIM_Cmd(TIM6, ENABLE);
     }
 }
 
+
 /**
  * @brief UI参数更新函数
  *
  * @param pUIAppParam
  */
-inline static void uiParamUpdate(uiAppParamTypeDef* pUIAppParam) {
+inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {
+
     if (iicDMABufIdx) {
+
         pUIAppParam->graphicsBuffers = oledObj.graphicsBuffer;
+
     } else {
+
         pUIAppParam->graphicsBuffers = oledObj.iic->txBuffer;
     }
 }

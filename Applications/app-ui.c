@@ -32,12 +32,29 @@
 
 /* ------- define ----------------------------------------------------------------------------------------------------*/
 
+#define UI_SELECT_INDEX_QUANTITY 6
 
 
 
 
 /* ------- macro -----------------------------------------------------------------------------------------------------*/
 
+#define UI_SELECTED_GOTO_NEXT(x)                                                                                       \
+    do {                                                                                                               \
+        x++;                                                                                                           \
+        if (x >= UI_SELECT_INDEX_QUANTITY) {                                                                           \
+            x = 0;                                                                                                     \
+        }                                                                                                              \
+    } while (0);
+
+#define UI_SELECTED_GOTO_PREV(x)                                                                                       \
+    do {                                                                                                               \
+        if (x == 0) {                                                                                                  \
+            x = UI_SELECT_INDEX_QUANTITY - 1;                                                                          \
+        } else {                                                                                                       \
+            x--;                                                                                                       \
+        }                                                                                                              \
+    } while (0);
 
 
 
@@ -48,31 +65,37 @@ static void actionWhileBrowse(void* argument);
 static void actionWhileEdit(void* argument);
 static void actionWhileFigureView(void* argument);
 
-static uint8_t conditionBorwse2Edit(void* argument);
-static uint8_t conditionEdit2Browse(void* argument);
-static uint8_t conditionBrowse2FigureView(void* argument);
-static uint8_t conditionFigureView2Browse(void* argument);
-static uint8_t conditionEdit2FigureView(void* argument);
-static uint8_t conditionFigureView2Edit(void* argument);
-
+static void browseAnimate(void* argument);
 
 
 
 /* ------- variables -------------------------------------------------------------------------------------------------*/
 
 
-
-static uiStateTransitionTypeDef uiStateMachineList[] = {
-    {UI_STATE_ADJUST_BROUWSE, UI_STATE_ADJUST_EDIT, conditionBorwse2Edit, actionWhileBrowse},
-    {UI_STATE_ADJUST_EDIT, UI_STATE_ADJUST_BROUWSE, conditionEdit2Browse, actionWhileEdit},
-    {UI_STATE_ADJUST_BROUWSE, UI_STATE_FIGURE_VIEW, conditionBrowse2FigureView, actionWhileBrowse},
-    {UI_STATE_FIGURE_VIEW, UI_STATE_ADJUST_BROUWSE, conditionFigureView2Browse, actionWhileFigureView},
-    {UI_STATE_ADJUST_EDIT, UI_STATE_FIGURE_VIEW, conditionEdit2FigureView, actionWhileEdit},
-    {UI_STATE_FIGURE_VIEW, UI_STATE_ADJUST_EDIT, conditionFigureView2Edit, actionWhileFigureView},
+// UI状态机列表
+static UIStateTransitionTypeDef uiStateMachineList[] = {
+    {UI_STATE_ADJUST_BROUWSE, UI_STATE_ADJUST_EDIT, UI_EVENT_VALUE_SELECT, actionWhileBrowse},
+    {UI_STATE_ADJUST_EDIT, UI_STATE_ADJUST_BROUWSE, UI_EVENT_VALUE_UNSELECT, actionWhileEdit},
+    {UI_STATE_ADJUST_BROUWSE, UI_STATE_FIGURE_VIEW, UI_EVENT_FIGURE_VIEW, actionWhileBrowse},
+    {UI_STATE_FIGURE_VIEW, UI_STATE_ADJUST_BROUWSE, UI_EVENT_FIGURE_EXIT, actionWhileFigureView},
 };
 
-static uiStateTypeDef uiCurrentState;
-static uiStateTypeDef uiLastState;
+// UI选择信息显示数据
+static UISelDispInfoTypeDef uiSelInfoDispList[] = {
+    // 信号1频率选择数据
+    {{SIGNAL_1_FREQ}, {30, 16, 79, 32, 5}},
+    // 信号2频率选择数据
+    {{SIGNAL_2_FREQ}, {79, 16, 128, 32, 5}},
+    // 信号1幅度选择数据
+    {{SIGNAL_1_AMP}, {30, 32, 79, 48, 5}},
+    // 信号2幅度选择数据
+    {{SIGNAL_2_AMP}, {79, 32, 128, 48, 5}},
+    // 信号1相位选择数据
+    {{SIGNAL_1_PHASE}, {30, 48, 79, 64, 5}},
+    // 信号2相位选择数据
+    {{SIGNAL_2_PHASE}, {79, 48, 128, 64, 5}},
+};
+
 
 const uint8_t img[1024] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -130,6 +153,9 @@ const uint8_t img[1024] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+// 点阵图像素数据
+static uint8_t dotMatrix[HEIGHT][WIDTH] = {0};
+
 
 
 /* ------- function implement ----------------------------------------------------------------------------------------*/
@@ -140,8 +166,15 @@ const uint8_t img[1024] = {
  * @param argument
  */
 void uiAppInit(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
     memcpy(pParam->graphicsBuffers, img, sizeof(img)); // 初始化图形缓冲区
+    pParam->browseAnimateTimer      = timeServIntf.softTimerRegister();
+    pParam->event                   = UI_EVENT_NONE;                           // 初始化事件为无
+    pParam->curState                = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
+    pParam->selectIndex             = SIGNAL_1_FREQ;                           // 初始选择索引为信号1频率
+    pParam->animateData.pCurSelInfo = &uiSelInfoDispList[pParam->selectIndex]; // 设置当前选择信息
+    pParam->dotMatrix               = dotMatrix;                               // 设置点阵图像素
+    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 30, 16, 79, 32, 5);
 }
 
 /**
@@ -151,12 +184,11 @@ void uiAppInit(void* argument) {
  */
 void uiAppLoop(void* argument) {
     // 遍历状态机列表，检查每个状态机的条件函数
-    for (int i = 0; i < sizeof(uiStateMachineList) / sizeof(uiStateTransitionTypeDef); i++) {
-        if (uiStateMachineList[i].curState == uiCurrentState) {
-            if (uiStateMachineList[i].conditionFunc(argument)) {
-
-                uiLastState    = uiCurrentState; // 保存上一个状态
-                uiCurrentState = uiStateMachineList[i].nextState;
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+    for (int i = 0; i < sizeof(uiStateMachineList) / sizeof(UIStateTransitionTypeDef); i++) {
+        if (uiStateMachineList[i].curState == pParam->curState) {
+            if (pParam->event == uiStateMachineList[i].event) {
+                pParam->curState = uiStateMachineList[i].nextState;
                 break;
             }
             // 执行状态动作函数
@@ -171,9 +203,26 @@ void uiAppLoop(void* argument) {
  * @param argument
  */
 static void actionWhileBrowse(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+    //	memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
 
     memcpy(pParam->graphicsBuffers, img, sizeof(img)); // 恢复图形缓冲区
+
+    // browseAnimate(argument);                           // 浏览动画处理
+
+    // 绘制当前选择信息的圆角矩形
+    //    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
+    //                                          pParam->selDispInfo.rectParam.startY,
+    //                                          pParam->selDispInfo.rectParam.endX, pParam->selDispInfo.rectParam.endY,
+    //                                          pParam->selDispInfo.rectParam.radius);
+
+    // 将圆角矩形区域颜色反转
+    //    graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers);
+    for (uint8_t i = 30; i < 50; i++) {
+        for (uint8_t j = 2; j < 4; j++) {
+            ((uint8_t(*)[128])pParam->graphicsBuffers)[j][i] ^= 0xFF;
+        }
+    }
 }
 
 /**
@@ -189,71 +238,52 @@ static void actionWhileEdit(void* argument) {}
  *
  * @param argument
  */
-static void actionWhileFigureView(void* argument) { uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument; }
+static void actionWhileFigureView(void* argument) {}
 
 
 /**
- * @brief 浏览状态到编辑状态的转换条件函数
+ * @brief 浏览动画处理函数
  *
  * @param argument
- * @return uint8_t
  */
-static uint8_t conditionBorwse2Edit(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
-    return 0;
-}
+static void browseAnimate(void* argument) {
 
-/**
- * @brief 编辑状态到浏览状态的转换条件函数
- *
- * @param argument
- * @return uint8_t
- */
-static uint8_t conditionEdit2Browse(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
-    return 0;
-}
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
 
-/**
- * @brief 浏览状态到图形查看状态的转换条件函数
- *
- * @param argument
- * @return uint8_t
- */
-static uint8_t conditionBrowse2FigureView(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
-    return 0;
-}
+    // 如果触发了切换选择事件
+    if (pParam->event == UI_EVENT_SELECT_NEXT || pParam->event == UI_EVENT_SELECT_PREV) {
+        // 进入过渡状态
+        // 开始软定时器计时
+        pParam->animateData.transitionState = 1;
+        pParam->animateData.elapsed         = timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
 
-/**
- * @brief 图形查看状态到浏览状态的转换条件函数
- *
- * @param argument
- * @return uint8_t
- */
-static uint8_t conditionFigureView2Browse(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
-    return 0;
-}
+        // 设置下一个选择信息
+        if (pParam->event == UI_EVENT_SELECT_NEXT) {
+            // 如果是下一个选择事件，更新选择索引并获取下一个选择信息
+            uint8_t nextIndex = pParam->selectIndex;
+            UI_SELECTED_GOTO_NEXT(nextIndex);
+            pParam->animateData.pNextSelInfo = &uiSelInfoDispList[nextIndex];
+        } else if (pParam->event == UI_EVENT_SELECT_PREV) {
+            uint8_t prevIndex = pParam->selectIndex;
+            UI_SELECTED_GOTO_PREV(prevIndex);
+            pParam->animateData.pNextSelInfo = &uiSelInfoDispList[prevIndex];
+        }
 
-/**
- * @brief 编辑状态到图形查看状态的转换条件函数
- *
- * @param argument
- * @return uint8_t
- */
-static uint8_t conditionEdit2FigureView(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
-    return 0;
-}
+    } else if (pParam->animateData.transitionState == 1) {
 
-/**
- * @brief 图形查看状态到编辑状态的转换条件函数
- *
- * @param argument
- * @return uint8_t
- */
-static uint8_t conditionFigureView2Edit(void* argument) {
-    uiAppParamTypeDef* pParam = (uiAppParamTypeDef*)argument;
-    return 0;
+        // 如果处于过渡状态，更新动画数据
+
+        pParam->animateData.elapsed = timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
+
+        if (pParam->animateData.elapsed >= pParam->animateData.duration) {
+            // 如果已经经过的时间超过了持续时间，结束过渡状态
+            pParam->animateData.transitionState = 0;                                // 过渡状态结束
+            pParam->animateData.elapsed         = 0.0f;                             // 重置已经经过的时间
+            pParam->animateData.pCurSelInfo     = pParam->animateData.pNextSelInfo; // 更新当前选择信息
+        }
+    } else if (pParam->animateData.transitionState == 0) {
+
+        // 如果不处于过渡状态，直接显示当前选择信息
+        pParam->selDispInfo = *pParam->animateData.pCurSelInfo;
+    }
 }

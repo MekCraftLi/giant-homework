@@ -35,6 +35,8 @@
 
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
+typedef uint32_t SoftTimerHandle; // 时间句柄类型定义，用于标识时间服务的实例或任务
+
 /* 时间服务对外接口 */
 typedef struct {
     void (*servInit)(void);
@@ -42,7 +44,15 @@ typedef struct {
     void (*delayMs)(uint32_t ms);
     void (*delaySec)(uint32_t sec);
     float (*getGlobalTime)(void);
+    SoftTimerHandle (*softTimerRegister)(void);
+    void (*softTimerUnregister)(SoftTimerHandle handle);
+    float (*getElapsedTime)(SoftTimerHandle handle);
 } TimeServIntfTypeDef;
+
+/* 软件定时器计时数据 */
+typedef struct {
+    float startTime; // 计时开始时间
+} SoftTimerDataTypeDef;
 
 
 

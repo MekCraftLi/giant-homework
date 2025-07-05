@@ -35,7 +35,6 @@
 
 
 
-
 /* ------- macro -----------------------------------------------------------------------------------------------------*/
 
 
@@ -44,13 +43,27 @@
 
 /* ------- function prototypes ---------------------------------------------------------------------------------------*/
 
+static void drawLine(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
+static void drawStarDot(uint8_t dotMatrix[HEIGHT][WIDTH], float centerX, float centerY, float radius);
+static void bitToByte(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]);
+static void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
+                                    uint8_t endY, uint8_t radius);
+static void drawStar(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]);
+static void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH]);
+
 
 
 
 
 /* ------- variables -------------------------------------------------------------------------------------------------*/
 
-uint8_t dotMatrix[HEIGHT][WIDTH] = {0}; // 点阵图
+GraphServIntfTypeDef graphServIntf = {
+    .drawRoundRect2DotMatrix = drawRoundRect2DotMatrix,
+    .bitToByte               = bitToByte,
+    .drawStarDot             = drawStarDot,
+    .drawLine                = drawLine,
+    .InverBufferWithMask     = InverBufferWithMask,
+};
 
 
 
@@ -144,12 +157,75 @@ static void bitToByte(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE
  *
  * @param graphBuffer 字节数组
  */
-void drawStar(uint8_t graphBuffer[PAGE][WIDTH]) {
+void drawStar(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]) {
 
-    float centerX                    = WIDTH / 2;
-    float centerY                    = HEIGHT / 2;
-    float radius                     = 25;
+    float centerX = WIDTH / 2;
+    float centerY = HEIGHT / 2;
+    float radius  = 25;
 
     drawStarDot(dotMatrix, centerX, centerY, radius);
     bitToByte(dotMatrix, graphBuffer);
+}
+
+/**
+ * @brief 点阵中绘制圆角矩形
+ *
+ * @param dotMatrix
+ * @param startX
+ * @param startY
+ * @param endX
+ * @param endY
+ * @param radius
+ */
+void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
+                             uint8_t endY, uint8_t radius) {
+    // 确保起始和结束坐标合法
+    if (startX >= WIDTH || startY >= HEIGHT || endX >= WIDTH || endY >= HEIGHT || startX > endX || startY > endY) {
+        return;
+    }
+
+    // 逐行绘制
+    for (uint8_t y = startY; y <= endY; y++) {
+        uint8_t lightUpFromX;
+        uint8_t lightUpToX;
+
+        // 计算当前行的起始和结束点
+        // 1.位于上方圆角区域
+        if (y < startY + radius) {
+            lightUpFromX = startX + radius - (uint8_t)sqrt(radius * radius - (y - startY) * (y - startY));
+            lightUpToX   = endX - radius + (uint8_t)sqrt(radius * radius - (y - startY) * (y - startY));
+        } else if (y < endY - radius) {
+            // 2.位于中间区域
+            lightUpFromX = startX;
+            lightUpToX   = endX;
+        } else {
+            // 3.位于下方圆角区域
+            lightUpFromX = startX + radius - (uint8_t)sqrt(radius * radius - (endY - y) * (endY - y));
+            lightUpToX   = endX - radius + (uint8_t)sqrt(radius * radius - (endY - y) * (endY - y));
+        }
+
+        for (uint8_t x = lightUpFromX; x <= lightUpToX; x++) {
+
+            dotMatrix[y][x] = 1; // 设置点阵图像素为1
+        }
+    }
+}
+
+
+/**
+ * @brief 反转图形缓冲区中指定掩码的像素
+ *
+ * @param mask 掩码数组，指示哪些像素需要被反转
+ * @param buffer 图形缓冲区
+ */
+void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH]) {
+    for (uint8_t y = 0; y < 64; y++) {
+        for (uint8_t x = 0; x < 128; x++) {
+            if (mask[y][x]) {
+                uint8_t page = y / 8;
+                uint8_t bit_pos = y % 8;
+                buffer[page][x] ^= (1 << bit_pos);
+            }
+        }
+    }
 }

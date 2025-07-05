@@ -81,9 +81,9 @@ TIMIntfTypeDef timIntf = {
 
 TIMErrCode timInit(TIMObjTypeDef* timObj, TIM_TypeDef* tim) {
     uint32_t clk = 0;
-    GET_TIM_CLOCK(tim, clk); // 获取定时器时钟频率
-    timObj->tim     = tim;   // 设置定时器外设
-    timObj->clkFreq = 72000000;   // 设置定时器时钟频率
+    GET_TIM_CLOCK(tim, clk);    // 获取定时器时钟频率
+    timObj->tim     = tim;      // 设置定时器外设
+    timObj->clkFreq = 72000000; // 设置定时器时钟频率
 
     // 启用时钟
     if (tim == TIM1) {
@@ -105,8 +105,8 @@ TIMErrCode timInit(TIMObjTypeDef* timObj, TIM_TypeDef* tim) {
     } else {
         return TIM_ERR_INVALID; // 无效的定时器
     }
-	
-	return TIM_SUCCESS;
+
+    return TIM_SUCCESS;
 }
 
 static TIMErrCode timCalcARRPSC(uint32_t clkFreq, uint32_t targetFreq, uint32_t* arr, uint16_t* psc) {
@@ -117,8 +117,8 @@ static TIMErrCode timCalcARRPSC(uint32_t clkFreq, uint32_t targetFreq, uint32_t*
     uint32_t totalDiv = clkFreq / targetFreq; // 计算总分频系数
 
 
-    *psc = (uint16_t)(sqrt(totalDiv));
-    *arr = (uint16_t)(totalDiv / (*psc) - 1);
+    *psc              = (uint16_t)(sqrt(totalDiv));
+    *arr              = (uint16_t)(totalDiv / (*psc) - 1);
 
     if (*arr > 65535) {
         return TIM_ERR_PARAM; // ARR超出范围
@@ -252,7 +252,7 @@ TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCoun
     if (timObj == NULL || timObj->tim == NULL) {
         return TIM_ERR_PARAM; // 无效的定时器对象
     }
-	
+
     if (freq == 0 || maxCount == 0) {
         return TIM_ERR_PARAM; // 无效的频率或计数值
     }
@@ -279,7 +279,7 @@ TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCoun
     TIM_TimeBaseStructure.TIM_CounterMode   = TIM_CounterMode_Up;
 
     TIM_TimeBaseInit(timObj->tim, &TIM_TimeBaseStructure);
-	timObj->init = 1;
+    timObj->init = 1;
 
     return TIM_SUCCESS;
 }

@@ -68,25 +68,24 @@ void systInit(void) {
 
     SysTick->LOAD = 0;
 
-    SysTick->VAL = 0;
+    SysTick->VAL  = 0;
 
     SysTick->CTRL = 0x04;
 }
 
 void systCount(uint32_t count) {
-	if (count == 0) {
-		return ;
-	}
-    
+    if (count == 0) {
+        return;
+    }
+
     SysTick->LOAD = count - 1;
-	SysTick->VAL  = 0;
-	SysTick->CTRL = 0x05;
+    SysTick->VAL  = 0;
+    SysTick->CTRL = 0x05;
 
     /* 等待延时结束 */
     while ((SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) == 0)
         ;
-	SysTick->CTRL = 0x04;
+    SysTick->CTRL = 0x04;
 
     /* 禁用SysTick */
-    
 }

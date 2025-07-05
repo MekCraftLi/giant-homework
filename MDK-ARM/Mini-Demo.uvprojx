@@ -48,7 +48,7 @@
             <NotGenerated>0</NotGenerated>
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
-          <OutputDirectory>.\Mini-OLED\</OutputDirectory>
+          <OutputDirectory>.\Mini-Demo\</OutputDirectory>
           <OutputName>Mini-Demo.elf</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
