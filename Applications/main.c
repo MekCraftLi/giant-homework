@@ -7,7 +7,7 @@
  ***********************************************************************************************************************
  * @attention
  *
- * 主函数所在文件，调用所有的应用
+ * 主函数所在文件，调用所有的应用以及中断处理函数
  *
  ***********************************************************************************************************************
  **/
@@ -21,6 +21,7 @@
 #include "../Protocols/drv-usart.h"
 #include "../Services/graph-service.h"
 #include "../Services/time-service.h"
+#include "app-ui.h"
 #include "main.h"
 #include <string.h>
 
@@ -59,6 +60,7 @@ static uint8_t iicDMABufIdx = 0;
 
 /* ------- function prototypes ---------------------------------------------------------------------------------------*/
 
+static void uiParamUpdate(uiAppParamTypeDef*);
 
 
 
@@ -75,9 +77,12 @@ int main(void) {
     /* ------ local variables ------------------------------------------------*/
     // TIM对象
     TIMObjTypeDef timFlashOLED;
+    uiAppParamTypeDef uiAppParam; // UI应用参数
 
 
     float mainLoopStartTime = 0.0f; // 主循环开始时间
+
+
 
 
     /* ----- drivers & service initialize ------------------------------------*/
@@ -97,7 +102,22 @@ int main(void) {
     timIntf.setFrequency(&timFlashOLED, 30);
     timIntf.enableISR(&timFlashOLED);
 
+
+
+
     /* ----- applications initialize -----------------------------------------*/
+
+    // 初始化UI应用
+    if (iicDMABufIdx) {
+        uiAppParam.graphicsBuffers = oledObj.graphicsBuffer;
+    } else {
+        uiAppParam.graphicsBuffers = oledObj.iic->txBuffer;
+    }
+
+    uiAppInit(&uiAppParam);
+
+    iicDMABufIdx = !iicDMABufIdx; // 切换DMA缓冲区索引
+
 
 
 
@@ -106,8 +126,19 @@ int main(void) {
     while (1) {
         sysTime = mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
 
+        // 参数更新
+        uiParamUpdate(&uiAppParam);
 
-        mainLoopTime                = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
+
+
+
+
+        // 调用应用
+        uiAppLoop(&uiAppParam);
+
+
+        iicDMABufIdx = !iicDMABufIdx;                                    // 切换DMA缓冲区索引
+        mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
     }
 
     return 0;
@@ -146,5 +177,18 @@ void TIM6_IRQHandler(void) {
         I2C_DMACmd(I2C1, ENABLE);
         DMA_Cmd(DMA1_Channel6, ENABLE);
         TIM_Cmd(TIM6, ENABLE);
+    }
+}
+
+/**
+ * @brief UI参数更新函数
+ *
+ * @param pUIAppParam
+ */
+inline static void uiParamUpdate(uiAppParamTypeDef* pUIAppParam) {
+    if (iicDMABufIdx) {
+        pUIAppParam->graphicsBuffers = oledObj.graphicsBuffer;
+    } else {
+        pUIAppParam->graphicsBuffers = oledObj.iic->txBuffer;
     }
 }

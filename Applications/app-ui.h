@@ -32,6 +32,21 @@
 
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
+typedef enum {
+    UI_STATE_ADJUST_BROUWSE, // 调节浏览状态
+    UI_STATE_ADJUST_EDIT,    // 调节编辑状态
+    UI_STATE_FIGURE_VIEW,    // 图形查看状态
+} uiStateTypeDef;            // UI状态枚举类型定义
+
+// UI状态机类型定义
+typedef struct {
+    uiStateTypeDef curState;         // 当前UI状态
+    uiStateTypeDef nextState;        // 下一个UI状态
+    uint8_t (*conditionFunc)(void*); // 状态转换条件函数指针
+    void (*actionFunc)(void*);       // 状态动作函数指针
+} uiStateTransitionTypeDef;
+
+
 typedef struct {
     void* graphicsBuffers;
 } uiAppParamTypeDef;
