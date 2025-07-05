@@ -48,6 +48,7 @@ typedef enum {
 typedef struct {
     IICObjTypeDef* iic;
     uint8_t graphicsBuffer[OLED_HEIGHT][OLED_WIDTH];
+    uint8_t graphicsBufferSub[OLED_HEIGHT][OLED_WIDTH]; // 用于DMA传输时的辅助缓冲区
 } OLEDObjTypeDef;
 
 typedef struct {

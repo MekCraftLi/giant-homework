@@ -52,9 +52,7 @@
 uint16_t debug_errCnt;
 float mainLoopTime = 0.0f; // 主循环时间
 static OLEDObjTypeDef oledObj;
-static uint8_t iicDMABufIdx = 0;
 UIAppParamTypeDef uiAppParam; // UI应用参数
-static uint8_t txFinished;    // OLED发送完成
 
 
 
@@ -77,8 +75,6 @@ int main(void) {
     /* ------ local variables ------------------------------------------------*/
     // TIM对象
     TIMObjTypeDef timFlashOLED;
-
-
 
     float mainLoopStartTime = 0.0f; // 主循环开始时间
 
@@ -107,16 +103,9 @@ int main(void) {
 
     /* ----- applications initialize -----------------------------------------*/
 
-    // 初始化UI应用
-    if (iicDMABufIdx) {
-        uiAppParam.graphicsBuffers = oledObj.graphicsBuffer;
-    } else {
-        uiAppParam.graphicsBuffers = oledObj.iic->txBuffer;
-    }
-
+    uiAppParam.graphicsBuffers[0] = oledObj.graphicsBuffer;    // 设置图形缓冲区
+    uiAppParam.graphicsBuffers[1] = oledObj.graphicsBufferSub; // 设置辅助图形缓冲区
     uiAppInit(&uiAppParam);
-
-    iicDMABufIdx = !iicDMABufIdx; // 切换DMA缓冲区索引
 
 
 
@@ -132,12 +121,10 @@ int main(void) {
         // 调用应用
         uiAppLoop(&uiAppParam);
 
-
-        iicDMABufIdx = !iicDMABufIdx;                                    // 切换DMA缓冲区索引
+                                  // 切换DMA缓冲区索引
         mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
     }
 
-    return 0;
 }
 
 
@@ -151,7 +138,6 @@ void DMA1_Channel6_IRQHandler(void) {
         DMA_ClearITPendingBit(DMA1_IT_TC6); // 清除中断标志
         DMA_Cmd(DMA1_Channel6, DISABLE);    // 禁用DMA通道6
         I2C_DMACmd(I2C1, DISABLE);
-        txFinished = 1;
     }
 }
 
@@ -165,15 +151,15 @@ void TIM6_IRQHandler(void) {
     if (TIM_GetITStatus(TIM6, TIM_IT_Update)) {
         TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
 
-
-        if (iicDMABufIdx == 0) {
-            DMA1_Channel6->CMAR = (uint32_t)oledObj.graphicsBuffer;
-        } else {
-            DMA1_Channel6->CMAR = (uint32_t)oledObj.iic->txBuffer;
+        // 将准备好的数据转运到缓冲区
+        if (uiAppParam.bufferIndex == 0) {
+            memcpy(oledObj.iic->txBuffer, uiAppParam.graphicsBuffers[1], OLED_WIDTH * OLED_HEIGHT);
+        } else if (uiAppParam.bufferIndex == 1) {
+            memcpy(oledObj.iic->txBuffer, uiAppParam.graphicsBuffers[0], OLED_WIDTH * OLED_HEIGHT);
         }
 
         DMA1_Channel6->CNDTR = 1024;
-        txFinished           = 0;
+
         I2C_DMACmd(I2C1, ENABLE);
         DMA_Cmd(DMA1_Channel6, ENABLE);
         TIM_Cmd(TIM6, ENABLE);
@@ -186,14 +172,4 @@ void TIM6_IRQHandler(void) {
  *
  * @param pUIAppParam
  */
-inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {
-
-    if (iicDMABufIdx) {
-
-        pUIAppParam->graphicsBuffers = oledObj.graphicsBuffer;
-
-    } else {
-
-        pUIAppParam->graphicsBuffers = oledObj.iic->txBuffer;
-    }
-}
+inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {}

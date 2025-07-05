@@ -95,14 +95,23 @@ typedef struct {
     float elapsed;                      // 已经经过的时间
 } UISelDispAnimDataTypeDef;
 
+typedef struct {
+    float freq;      // 频率
+    float amp;       // 幅度
+    float phase;     // 相位
+} SignalInfoTypeDef; // 信号信息类型定义
+
 
 // UI应用参数类型定义
 typedef struct {
-    void* graphicsBuffers;
-    void* dotMatrix;               // 图形缓冲区和点阵图像素
+    void* graphicsBuffers[2];      // 图形缓冲区
+    void* dotMatrix;               // 点阵图像素
+    uint8_t bufferIndex;           // 图形缓冲区索引
     UIEventEnum event;             // 当前事件
     UIStateEnum curState;          // 当前状态
     UISelectIndexEnum selectIndex; // 当前选择索引
+
+    SignalInfoTypeDef signalInfo[2]; // 信号信息
 
     UISelDispInfoTypeDef selDispInfo;     // 选择信息显示数据
     UISelDispAnimDataTypeDef animateData; // 浏览选择动画数据

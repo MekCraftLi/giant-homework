@@ -192,16 +192,20 @@ void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, u
         // 计算当前行的起始和结束点
         // 1.位于上方圆角区域
         if (y < startY + radius) {
-            lightUpFromX = startX + radius - (uint8_t)sqrt(radius * radius - (y - startY) * (y - startY));
-            lightUpToX   = endX - radius + (uint8_t)sqrt(radius * radius - (y - startY) * (y - startY));
-        } else if (y < endY - radius) {
+            uint8_t l       = y - startY;
+            uint8_t xOffset = radius - (uint8_t)sqrt(2 * l * radius - 2 * l - l * l) - 1;
+            lightUpFromX    = startX + xOffset;
+            lightUpToX      = endX - xOffset;
+        } else if (y < endY - radius + 1) {
             // 2.位于中间区域
             lightUpFromX = startX;
             lightUpToX   = endX;
         } else {
             // 3.位于下方圆角区域
-            lightUpFromX = startX + radius - (uint8_t)sqrt(radius * radius - (endY - y) * (endY - y));
-            lightUpToX   = endX - radius + (uint8_t)sqrt(radius * radius - (endY - y) * (endY - y));
+            uint8_t l       = endY - y; // 计算当前行到下方圆角的距离
+            uint8_t xOffset = radius - (uint8_t)sqrt(2 * l * radius - 2 * l - l * l) - 1;
+            lightUpFromX    = startX + xOffset;
+            lightUpToX      = endX - xOffset;
         }
 
         for (uint8_t x = lightUpFromX; x <= lightUpToX; x++) {
@@ -222,7 +226,7 @@ void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH
     for (uint8_t y = 0; y < 64; y++) {
         for (uint8_t x = 0; x < 128; x++) {
             if (mask[y][x]) {
-                uint8_t page = y / 8;
+                uint8_t page    = y / 8;
                 uint8_t bit_pos = y % 8;
                 buffer[page][x] ^= (1 << bit_pos);
             }

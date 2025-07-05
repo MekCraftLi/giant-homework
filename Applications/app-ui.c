@@ -83,17 +83,17 @@ static UIStateTransitionTypeDef uiStateMachineList[] = {
 // UI选择信息显示数据
 static UISelDispInfoTypeDef uiSelInfoDispList[] = {
     // 信号1频率选择数据
-    {{SIGNAL_1_FREQ}, {30, 16, 79, 32, 5}},
+    {{SIGNAL_1_FREQ}, {32, 17, 76, 29, 3}},
     // 信号2频率选择数据
-    {{SIGNAL_2_FREQ}, {79, 16, 128, 32, 5}},
+    {{SIGNAL_2_FREQ}, {76, 16, 128, 32, 3}},
     // 信号1幅度选择数据
-    {{SIGNAL_1_AMP}, {30, 32, 79, 48, 5}},
+    {{SIGNAL_1_AMP}, {30, 32, 76, 48, 3}},
     // 信号2幅度选择数据
-    {{SIGNAL_2_AMP}, {79, 32, 128, 48, 5}},
+    {{SIGNAL_2_AMP}, {76, 32, 128, 48, 3}},
     // 信号1相位选择数据
-    {{SIGNAL_1_PHASE}, {30, 48, 79, 64, 5}},
+    {{SIGNAL_1_PHASE}, {30, 48, 76, 64, 3}},
     // 信号2相位选择数据
-    {{SIGNAL_2_PHASE}, {79, 48, 128, 64, 5}},
+    {{SIGNAL_2_PHASE}, {76, 48, 128, 64, 3}},
 };
 
 
@@ -153,9 +153,16 @@ const uint8_t img[1024] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+const uint8_t font0[2][5]               = {{0xFE, 0x01, 0x11, 0x01, 0xFE}, {0x00, 0x01, 0x01, 0x01, 0x00}}; // 字体0
+const uint8_t font1[2][5]               = {{0x81, 0x81, 0xFF, 0x01, 0x01}, {0x00, 0x00, 0x01, 0x00, 0x00}}; // 字体1
+
+
+
+
 // 点阵图像素数据
 static uint8_t dotMatrix[HEIGHT][WIDTH] = {0};
 
+static uint8_t strBuffer[6][8];
 
 
 /* ------- function implement ----------------------------------------------------------------------------------------*/
@@ -167,7 +174,11 @@ static uint8_t dotMatrix[HEIGHT][WIDTH] = {0};
  */
 void uiAppInit(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
-    memcpy(pParam->graphicsBuffers, img, sizeof(img)); // 初始化图形缓冲区
+
+
+    memcpy(pParam->graphicsBuffers[0], img, sizeof(img)); // 初始化图形缓冲区
+
+
     pParam->browseAnimateTimer      = timeServIntf.softTimerRegister();
     pParam->event                   = UI_EVENT_NONE;                           // 初始化事件为无
     pParam->curState                = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
@@ -185,6 +196,10 @@ void uiAppInit(void* argument) {
 void uiAppLoop(void* argument) {
     // 遍历状态机列表，检查每个状态机的条件函数
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+
+    // 处理前切换了缓冲区
+    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
+
     for (int i = 0; i < sizeof(uiStateMachineList) / sizeof(UIStateTransitionTypeDef); i++) {
         if (uiStateMachineList[i].curState == pParam->curState) {
             if (pParam->event == uiStateMachineList[i].event) {
@@ -204,25 +219,25 @@ void uiAppLoop(void* argument) {
  */
 static void actionWhileBrowse(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
-    //	memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
+    memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
 
-    memcpy(pParam->graphicsBuffers, img, sizeof(img)); // 恢复图形缓冲区
 
-    // browseAnimate(argument);                           // 浏览动画处理
+    memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
+
+    sprintf("%.2f", pParam->signalInfo[0].freq, strBuffer[0]);
+
+
+
+
+    browseAnimate(argument); // 浏览动画处理
 
     // 绘制当前选择信息的圆角矩形
-    //    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
-    //                                          pParam->selDispInfo.rectParam.startY,
-    //                                          pParam->selDispInfo.rectParam.endX, pParam->selDispInfo.rectParam.endY,
-    //                                          pParam->selDispInfo.rectParam.radius);
+    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
+                                          pParam->selDispInfo.rectParam.startY, pParam->selDispInfo.rectParam.endX,
+                                          pParam->selDispInfo.rectParam.endY, pParam->selDispInfo.rectParam.radius);
 
     // 将圆角矩形区域颜色反转
-    //    graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers);
-    for (uint8_t i = 30; i < 50; i++) {
-        for (uint8_t j = 2; j < 4; j++) {
-            ((uint8_t(*)[128])pParam->graphicsBuffers)[j][i] ^= 0xFF;
-        }
-    }
+    graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
 }
 
 /**
