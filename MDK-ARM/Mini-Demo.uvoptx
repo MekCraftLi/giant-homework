@@ -198,7 +198,7 @@
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>strBuffer[0]</ItemText>
+          <ItemText>strBuffer[1]</ItemText>
         </Ww>
         <Ww>
           <count>9</count>

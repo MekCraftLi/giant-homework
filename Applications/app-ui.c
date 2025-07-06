@@ -184,8 +184,8 @@ void uiAppInit(void* argument) {
     memcpy(pParam->graphicsBuffers[0], img, sizeof(img)); // 初始化图形缓冲区
 
 
-	debugTimer = timeServIntf.softTimerRegister();
-		
+    debugTimer                      = timeServIntf.softTimerRegister();
+
     pParam->browseAnimateTimer      = timeServIntf.softTimerRegister();
     pParam->event                   = UI_EVENT_NONE;                           // 初始化事件为无
     pParam->curState                = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
@@ -233,15 +233,21 @@ static void actionWhileBrowse(void* argument) {
 
     singalInfoDisplay(argument);
 
-    sprintf((char*)(strBuffer[0]), "%.1f", pParam->signalInfo[0].freq);
-    sprintf((char*)(strBuffer[1]), "%.1f", pParam->signalInfo[1].freq);
-    sprintf((char*)(strBuffer[2]), "%.1f", pParam->signalInfo[0].amp);
-    sprintf((char*)(strBuffer[3]), "%.1f", pParam->signalInfo[1].amp);
-    sprintf((char*)(strBuffer[4]), "%d", pParam->signalInfo[0].phase);
-    sprintf((char*)(strBuffer[5]), "%d", pParam->signalInfo[1].phase);
+    sprintf((char*)(strBuffer[0]), "%.1fkHz", pParam->signalInfo[0].freq);
+    sprintf((char*)(strBuffer[1]), "%.1fkHz", pParam->signalInfo[1].freq);
+    sprintf((char*)(strBuffer[2]), "%.1f V", pParam->signalInfo[0].amp);
+    sprintf((char*)(strBuffer[3]), "%.1f V", pParam->signalInfo[1].amp);
+    sprintf((char*)(strBuffer[4]), "%d °", pParam->signalInfo[0].phase);
+    sprintf((char*)(strBuffer[5]), "%d °", pParam->signalInfo[1].phase);
 
 
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], "1.1", 30, 32, 79, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[0], 30, 29, 79, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[1], 76, 29, 128, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[2], 30, 46, 79, 32);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[3], 76, 46, 128, 32);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[4], 30, 62, 79, 48);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[5], 76, 62, 128, 48);
+
 
 
     browseAnimate(argument); // 浏览动画处理

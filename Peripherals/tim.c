@@ -283,3 +283,22 @@ TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCoun
 
     return TIM_SUCCESS;
 }
+
+TIMErrCode timEncoderConfig(TIMObjTypeDef* timObj) {
+    if (timObj == NULL || timObj->tim == NULL) {
+        return TIM_ERR_PARAM; // 无效的定时器对象
+    }
+
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+
+    TIM_TimeBaseStructure.TIM_Prescaler     = 0;
+    TIM_TimeBaseStructure.TIM_CounterMode   = TIM_CounterMode_Up;
+    TIM_TimeBaseStructure.TIM_Period        = 0xFFFF;
+    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+    TIM_TimeBaseInit(timObj->tim, &TIM_TimeBaseStructure);
+
+    TIM_EncoderInterfaceConfig(timObj->tim, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Falling);
+    TIM_Cmd(timObj->tim, ENABLE); // 启动编码器模式
+
+    return TIM_SUCCESS;
+}
