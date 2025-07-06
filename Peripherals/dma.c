@@ -336,12 +336,12 @@ DMAErrCode setDest(DMAObjTypeDef* obj, uint32_t dstAddr, DMASizeEnum dstSize, ui
             obj->CMAR                             = obj->dstAddr; // 内存地址
             DMA_InitStruct.DMA_PeripheralBaseAddr = obj->srcAddr;
             DMA_InitStruct.DMA_MemoryBaseAddr     = obj->dstAddr; // 目的地址
-            DMA_InitStruct.DMA_PeripheralInc  = obj->srcLen > 0 ? DMA_PeripheralInc_Enable : DMA_PeripheralInc_Disable;
+            DMA_InitStruct.DMA_PeripheralInc  = obj->srcLen > 1 ? DMA_PeripheralInc_Enable : DMA_PeripheralInc_Disable;
             DMA_InitStruct.DMA_DIR            = DMA_DIR_PeripheralSRC;                          // 外设为源地址
             DMA_InitStruct.DMA_M2M            = DMA_M2M_Disable;                                // 非内存到内存传输
-            DMA_InitStruct.DMA_MemoryInc      = obj->dstLen > 0;                                // 内存地址递增
-            DMA_InitStruct.DMA_MemoryDataSize = (obj->dstSize * 2) << 2;                        // 目的数据大小
-            DMA_InitStruct.DMA_PeripheralDataSize = obj->srcSize << 2;                          // 源数据大小
+            DMA_InitStruct.DMA_MemoryInc      = obj->dstLen > 1;                                // 内存地址递增
+            DMA_InitStruct.DMA_MemoryDataSize = obj->dstSize << 10;                        // 目的数据大小
+            DMA_InitStruct.DMA_PeripheralDataSize = obj->srcSize << 8;                          // 源数据大小
             DMA_InitStruct.DMA_Mode     = obj->cycleMode ? DMA_Mode_Circular : DMA_Mode_Normal; // 循环模式或正常模式
             DMA_InitStruct.DMA_Priority = obj->priority;                                        // 优先级
 
@@ -367,8 +367,8 @@ DMAErrCode setDest(DMAObjTypeDef* obj, uint32_t dstAddr, DMASizeEnum dstSize, ui
             DMA_InitStruct.DMA_DIR           = DMA_DIR_PeripheralDST; // 外设为目的地址
             DMA_InitStruct.DMA_MemoryInc =
                 obj->srcLen > 1 ? DMA_MemoryInc_Enable : DMA_MemoryInc_Disable;                 // 内存地址递增
-            DMA_InitStruct.DMA_MemoryDataSize     = obj->srcSize;                               // 源数据大小
-            DMA_InitStruct.DMA_PeripheralDataSize = obj->dstSize;                               // 目的数据大小
+            DMA_InitStruct.DMA_MemoryDataSize     = obj->srcSize << 10;                               // 源数据大小
+            DMA_InitStruct.DMA_PeripheralDataSize = obj->dstSize << 8;                               // 目的数据大小
             DMA_InitStruct.DMA_Mode     = obj->cycleMode ? DMA_Mode_Circular : DMA_Mode_Normal; // 循环模式或正常模式
             DMA_InitStruct.DMA_Priority = obj->priority;                                        // 优先级
         }

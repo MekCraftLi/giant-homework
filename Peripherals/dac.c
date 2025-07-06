@@ -55,6 +55,8 @@
 /* ------- function implement ----------------------------------------------------------------------------------------*/
 
 void dacInit(void) {
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
+
     DAC_InitTypeDef DAC_InitStructure;
     DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_LFSRUnmask_Bit0;
     DAC_InitStructure.DAC_OutputBuffer                 = DAC_OutputBuffer_Enable;

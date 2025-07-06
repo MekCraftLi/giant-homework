@@ -102,9 +102,9 @@ void signalAppInit(void* argument) {
 
     dmaIntf.start(&dacChannel1DMA); // 启动DAC通道1的DMA
     dmaIntf.start(&dacChannel2DMA); // 启动DAC通道2的DMA
-	dmaIntf.start(&adcChannel1DMA);
-	
-	// 3. 初始化DAC
+    dmaIntf.start(&adcChannel1DMA);
+
+    // 3. 初始化DAC
     dacInit();
 
     // 4. 初始化ADC
@@ -130,6 +130,7 @@ void signalAppInit(void* argument) {
     timIntf.countConfig(&dacChannel1Timer, dacChannel1Timer.clkFreq, 12); // 配置DAC通道定时器为1k*512Hz
     timIntf.countConfig(&dacChannel2Timer, dacChannel2Timer.clkFreq, 12);
 
+
     // 设定触发源
     TIM_SelectOutputTrigger(dacChannel1Timer.tim, TIM_TRGOSource_Update);
     TIM_SelectOutputTrigger(dacChannel2Timer.tim, TIM_TRGOSource_Update);
@@ -140,8 +141,9 @@ void signalAppInit(void* argument) {
     timIntf.start(&masterTimer);      // 启动主定时器
     timIntf.start(&dacChannel1Timer); // 启动DAC通道1定时器
     timIntf.start(&dacChannel2Timer); // 启动DAC通道2定时器
-	
-	ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 触发ADC1开始转换
+    timIntf.start(&adcSamplingTimer);
+
+    ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 触发ADC1开始转换
 }
 
 void signalAppLoop(void* argument) { SignalAppParamTypeDef* pSignalParam = (SignalAppParamTypeDef*)argument; }
@@ -150,12 +152,12 @@ void signalAppLoop(void* argument) { SignalAppParamTypeDef* pSignalParam = (Sign
 void generateSineWave512(uint16_t* buf, float amplitude, float phase_deg) {
     float phase_rad = phase_deg * PI / 180.0f;
 
-    for (int i = 0; i < 512; ++i) {
-        float angle  = 2.0f * PI * i / 512.0f + phase_rad;
+    for (int i = 0; i < WAVE_LEN; ++i) {
+        float angle  = 2.0f * PI * i / WAVE_LEN + phase_rad;
         float value  = sinf(angle) + 1; // 范围：-1 ~ +1
 
         // 幅度调整为 0~amplitude，然后加上 offset
-        float scaled = value * (amplitude / 3.3f) / DAC_RESOLUTION;
+        float scaled = value * (amplitude / 3.3f) * DAC_RESOLUTION / 2;
 
         // 限制范围到 0~4095
         if (scaled < 0)

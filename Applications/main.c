@@ -62,6 +62,7 @@ SignalAppParamTypeDef signalAppParam; // 信号应用参数
 /* ------- function prototypes ---------------------------------------------------------------------------------------*/
 
 static void uiParamUpdate(UIAppParamTypeDef*);
+inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam) ;
 
 
 
@@ -111,6 +112,7 @@ int main(void) {
     uiAppParam.graphicsBuffers[1] = oledObj.graphicsBufferSub; // 设置辅助图形缓冲区
     inputAppInit(&inputAppParam);
     uiAppInit(&uiAppParam);
+	signalParamUpdate(&signalAppParam);
     signalAppInit(&signalAppParam); // 初始化信号应用
 
 
@@ -240,4 +242,13 @@ inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {
     } else {
         pUIAppParam->eventGroup = 0; // 无事件
     }
+}
+
+inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam) {
+    pSignalAppParam->signalInfo[0].freq  = uiAppParam.signalInfo[0].freq;  // 更新信号1频率
+    pSignalAppParam->signalInfo[1].freq  = uiAppParam.signalInfo[1].freq;  // 更新信号2频率
+    pSignalAppParam->signalInfo[0].amp   = uiAppParam.signalInfo[0].amp;   // 更新信号1幅度
+    pSignalAppParam->signalInfo[1].amp   = uiAppParam.signalInfo[1].amp;   // 更新信号2幅度
+    pSignalAppParam->signalInfo[0].phase = uiAppParam.signalInfo[0].phase; // 更新信号1相位
+    pSignalAppParam->signalInfo[1].phase = uiAppParam.signalInfo[1].phase; // 更新信号2相位
 }

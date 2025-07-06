@@ -279,6 +279,7 @@ TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCoun
     TIM_TimeBaseStructure.TIM_Prescaler     = psc;
     TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     TIM_TimeBaseStructure.TIM_CounterMode   = TIM_CounterMode_Up;
+	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
     TIM_TimeBaseInit(timObj->tim, &TIM_TimeBaseStructure);
     timObj->init = 1;
