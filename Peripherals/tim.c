@@ -116,11 +116,11 @@ static TIMErrCode timCalcARRPSC(uint32_t clkFreq, uint32_t targetFreq, uint32_t*
         return TIM_ERR_PARAM; // 无效的频率
     }
 
-    uint32_t totalDiv = clkFreq / targetFreq; // 计算总分频系数
+    uint32_t totalDiv = (float)clkFreq / targetFreq + 0.5f; // 计算总分频系数
 
 
     *psc              = (uint16_t)(sqrt(totalDiv));
-    *arr              = (uint16_t)(totalDiv / (*psc) - 1);
+    *arr              = (uint16_t)(totalDiv / *psc);
 
     if (*arr > 65535) {
         return TIM_ERR_PARAM; // ARR超出范围
@@ -279,7 +279,7 @@ TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCoun
     TIM_TimeBaseStructure.TIM_Prescaler     = psc;
     TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     TIM_TimeBaseStructure.TIM_CounterMode   = TIM_CounterMode_Up;
-	TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+
 
     TIM_TimeBaseInit(timObj->tim, &TIM_TimeBaseStructure);
     timObj->init = 1;

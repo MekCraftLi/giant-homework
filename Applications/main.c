@@ -176,13 +176,17 @@ void TIM6_IRQHandler(void) {
         TIM_Cmd(TIM6, ENABLE);
     }
 }
-
+uint16_t debugDMA23Remain;
+uint16_t debugDMA24Remain;
 void TIM7_IRQHandler(void) {
     if (TIM_GetITStatus(TIM7, TIM_IT_Update)) {
         TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
         DMA_Cmd(DMA1_Channel1, DISABLE);
         DMA_SetCurrDataCounter(DMA1_Channel1, 2);
         DMA_Cmd(DMA1_Channel1, ENABLE);
+		
+		debugDMA23Remain = DMA2_Channel3->CNDTR;
+		debugDMA24Remain = DMA2_Channel4->CNDTR;
 
         ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 启动 ADC（ADC2 自动同步）
     }

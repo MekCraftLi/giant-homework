@@ -79,13 +79,13 @@ static float globalTime = 0.0f; // 全局时间变量
 /* ------- function implement ----------------------------------------------------------------------------------------*/
 
 void servInit(void) {
-    timIntf.init(&systTimObjSub, TIM2);
+    timIntf.init(&systTimObjSub, TIM4);
     timIntf.countConfig(&systTimObjSub, 1000000, 0xFFFF); // 配置定时器2为1us计数
     TIM_SelectOutputTrigger(systTimObjSub.tim, TIM_TRGOSource_Update);
 
     timIntf.init(&systTimObj, TIM5);
     timIntf.countConfig(&systTimObj, systTimObj.clkFreq, 0xFFFF); // 配置定时器2为1us计数
-    TIM_SelectInputTrigger(systTimObj.tim, TIM_TS_ITR0);
+    TIM_SelectInputTrigger(systTimObj.tim, TIM_TS_ITR2);
     TIM_SelectSlaveMode(systTimObj.tim, TIM_SlaveMode_External1);
 
 

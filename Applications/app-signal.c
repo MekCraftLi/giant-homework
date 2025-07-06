@@ -62,10 +62,9 @@ static DMAObjTypeDef dacChannel1DMA; // DAC通道1的DMA对象
 static DMAObjTypeDef dacChannel2DMA; // DAC通道2的DMA对象
 static DMAObjTypeDef adcChannel1DMA; // ADC通道1的DMA对象
 
-static TIMObjTypeDef dacChannel1Timer; // DAC通道1的定时器对象
-static TIMObjTypeDef dacChannel2Timer; // DAC通道2的定时器对象
 static TIMObjTypeDef adcSamplingTimer; // ADC采样定时器对象
-static TIMObjTypeDef masterTimer;      // 主定时器对象
+static TIMObjTypeDef dacTimer;      // 主定时器对象
+static TIMObjTypeDef debugTimer; // 调试用
 
 
 
@@ -88,9 +87,9 @@ void signalAppInit(void* argument) {
 
 
     // 2. 初始化DMA
-    dmaIntf.init(&dacChannel1DMA, DMA2_Channel3, DMA_Priority_High);
-    dmaIntf.init(&dacChannel2DMA, DMA2_Channel4, DMA_Priority_High);
-    dmaIntf.init(&adcChannel1DMA, DMA1_Channel1, DMA_Priority_High);
+    dmaIntf.init(&dacChannel1DMA, DMA2_Channel3, DMA_Priority_Medium);
+    dmaIntf.init(&dacChannel2DMA, DMA2_Channel4, DMA_Priority_Medium);
+    dmaIntf.init(&adcChannel1DMA, DMA1_Channel1, DMA_Priority_Medium);
 
     dmaIntf.setSorceCycle(&dacChannel1DMA, (uint32_t)pSignalParam->sign[0], DMA_SIZE_HALF_WORD, WAVE_LEN);
     dmaIntf.setSorceCycle(&dacChannel2DMA, (uint32_t)pSignalParam->sign[1], DMA_SIZE_HALF_WORD, WAVE_LEN);
@@ -111,37 +110,30 @@ void signalAppInit(void* argument) {
     adcInit();
 
     // 5. 配置定时器
-    timIntf.init(&masterTimer, TIM1);
-    timIntf.init(&dacChannel1Timer, TIM4);
-    timIntf.init(&dacChannel2Timer, TIM8);
+    timIntf.init(&dacTimer, TIM2);
     timIntf.init(&adcSamplingTimer, TIM7);
+	timIntf.init(&debugTimer, TIM4);
 
     // 设定频率
-    timIntf.countConfig(&masterTimer, 6000 * WAVE_LEN * 2, 0x01); // 配置定时器为6k x WAVE_LEN x 2 计数频率
+    timIntf.setFrequency(&dacTimer, 6000 * WAVE_LEN);
+	timIntf.setFrequency(&debugTimer, 6000 * WAVE_LEN);
 
     // 设定触发源
-    TIM_SelectOutputTrigger(masterTimer.tim, TIM_TRGOSource_Update);
+    TIM_SelectOutputTrigger(dacTimer.tim, TIM_TRGOSource_Update);
+	TIM_SelectOutputTrigger(debugTimer.tim, TIM_TRGOSource_Update);
 
     // 设定频率
     timIntf.setFrequency(&adcSamplingTimer, SAMPLING_FREQ); // 配置ADC采样定时器为50kHz
     timIntf.enableISR(&adcSamplingTimer);                   // 使能ADC采样定时器中断
 
-
-    timIntf.countConfig(&dacChannel1Timer, dacChannel1Timer.clkFreq, 12); // 配置DAC通道定时器为1k*512Hz
-    timIntf.countConfig(&dacChannel2Timer, dacChannel2Timer.clkFreq, 12);
-
-
     // 设定触发源
-    TIM_SelectOutputTrigger(dacChannel1Timer.tim, TIM_TRGOSource_Update);
-    TIM_SelectOutputTrigger(dacChannel2Timer.tim, TIM_TRGOSource_Update);
+    TIM_SelectOutputTrigger(dacTimer.tim, TIM_TRGOSource_Update);
 
-    TIM_SelectInputTrigger(dacChannel1Timer.tim, TIM_TS_ITR0); // 设置DAC通道1定时器为主定时器的输入触发
-    TIM_SelectInputTrigger(dacChannel2Timer.tim, TIM_TS_ITR0); // 设置DAC通道2定时器为主定时器的输入触发
-
-    timIntf.start(&masterTimer);      // 启动主定时器
-    timIntf.start(&dacChannel1Timer); // 启动DAC通道1定时器
-    timIntf.start(&dacChannel2Timer); // 启动DAC通道2定时器
+    timIntf.start(&dacTimer); // 启动DAC通道1定时器
     timIntf.start(&adcSamplingTimer);
+	timIntf.start(&debugTimer);
+	
+	TIM_DMACmd(TIM2, TIM_DMA_Update, ENABLE);
 
     ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 触发ADC1开始转换
 }
