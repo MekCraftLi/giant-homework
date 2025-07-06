@@ -61,6 +61,7 @@ TIMErrCode timStop(TIMObjTypeDef* timObj);
 TIMErrCode timSetCallback(TIMObjTypeDef* TIMObjTypeDef, void (*callback)(void));
 TIMErrCode timEnableISR(TIMObjTypeDef* timObj);
 TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCount);
+TIMErrCode timEncoderConfig(TIMObjTypeDef* timObj);
 
 
 
@@ -68,12 +69,13 @@ TIMErrCode timConfigCount(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCoun
 /* ------- variables -------------------------------------------------------------------------------------------------*/
 
 TIMIntfTypeDef timIntf = {
-    .init         = timInit,
-    .setFrequency = timSetFrequency,
-    .enableISR    = timEnableISR,
-    .start        = timStart,
-    .stop         = timStop,
-    .countConfig  = timConfigCount,
+    .init             = timInit,
+    .setFrequency     = timSetFrequency,
+    .enableISR        = timEnableISR,
+    .start            = timStart,
+    .stop             = timStop,
+    .countConfig      = timConfigCount,
+    .timEncoderConfig = timEncoderConfig,
 };
 
 
@@ -298,7 +300,8 @@ TIMErrCode timEncoderConfig(TIMObjTypeDef* timObj) {
     TIM_TimeBaseInit(timObj->tim, &TIM_TimeBaseStructure);
 
     TIM_EncoderInterfaceConfig(timObj->tim, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Falling);
-    TIM_Cmd(timObj->tim, ENABLE); // 启动编码器模式
+    TIM_SetCounter(timObj->tim, 0);
+    TIM_Cmd(timObj->tim, ENABLE);
 
     return TIM_SUCCESS;
 }

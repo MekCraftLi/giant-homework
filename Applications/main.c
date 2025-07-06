@@ -21,6 +21,7 @@
 #include "../Protocols/drv-usart.h"
 #include "../Services/graph-service.h"
 #include "../Services/time-service.h"
+#include "app-input.h"
 #include "app-ui.h"
 #include "main.h"
 #include <string.h>
@@ -52,7 +53,8 @@
 uint16_t debug_errCnt;
 float mainLoopTime = 0.0f; // 主循环时间
 static OLEDObjTypeDef oledObj;
-UIAppParamTypeDef uiAppParam; // UI应用参数
+UIAppParamTypeDef uiAppParam;       // UI应用参数
+InputAppParamTypeDef inputAppParam; // 输入应用参数
 
 
 
@@ -73,7 +75,7 @@ static void uiParamUpdate(UIAppParamTypeDef*);
 int main(void) {
 
     /* ------ local variables ------------------------------------------------*/
-	
+
     // TIM对象
     TIMObjTypeDef timFlashOLED;
 
@@ -106,6 +108,7 @@ int main(void) {
 
     uiAppParam.graphicsBuffers[0] = oledObj.graphicsBuffer;    // 设置图形缓冲区
     uiAppParam.graphicsBuffers[1] = oledObj.graphicsBufferSub; // 设置辅助图形缓冲区
+    inputAppInit(&inputAppParam);
     uiAppInit(&uiAppParam);
 
 
@@ -119,13 +122,14 @@ int main(void) {
         // 参数更新
         uiParamUpdate(&uiAppParam);
 
+
         // 调用应用
+        inputAppLoop(&inputAppParam); // 输入应用循环
         uiAppLoop(&uiAppParam);
 
-                                  // 切换DMA缓冲区索引
+        // 切换DMA缓冲区索引
         mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
     }
-
 }
 
 

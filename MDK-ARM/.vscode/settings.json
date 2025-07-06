@@ -19,6 +19,7 @@
         "stm32f10x.h": "c",
         "time-service.h": "c",
         "stddef.h": "c",
-        "app-ui.h": "c"
+        "app-ui.h": "c",
+        "app-input.h": "c"
     }
 }

@@ -76,6 +76,7 @@ typedef struct {
     TIMErrCode (*enableISR)(TIMObjTypeDef* timObj);
     TIMErrCode (*setCallback)(TIMObjTypeDef* timObj, void (*Callback)(void));
     TIMErrCode (*countConfig)(TIMObjTypeDef* timObj, uint32_t freq, uint32_t maxCount);
+    TIMErrCode (*timEncoderConfig)(TIMObjTypeDef* timObj);
 } TIMIntfTypeDef;
 
 
