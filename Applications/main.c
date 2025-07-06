@@ -22,6 +22,7 @@
 #include "../Services/graph-service.h"
 #include "../Services/time-service.h"
 #include "app-input.h"
+#include "app-signal.h"
 #include "app-ui.h"
 #include "main.h"
 #include <string.h>
@@ -53,9 +54,9 @@
 uint16_t debug_errCnt;
 float mainLoopTime = 0.0f; // 主循环时间
 static OLEDObjTypeDef oledObj;
-UIAppParamTypeDef uiAppParam;       // UI应用参数
-InputAppParamTypeDef inputAppParam; // 输入应用参数
-
+UIAppParamTypeDef uiAppParam;         // UI应用参数
+InputAppParamTypeDef inputAppParam;   // 输入应用参数
+SignalAppParamTypeDef signalAppParam; // 信号应用参数
 
 
 /* ------- function prototypes ---------------------------------------------------------------------------------------*/
@@ -110,6 +111,7 @@ int main(void) {
     uiAppParam.graphicsBuffers[1] = oledObj.graphicsBufferSub; // 设置辅助图形缓冲区
     inputAppInit(&inputAppParam);
     uiAppInit(&uiAppParam);
+    signalAppInit(&signalAppParam); // 初始化信号应用
 
 
 
@@ -118,9 +120,9 @@ int main(void) {
 
     while (1) {
         mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
-		
-		
-		// 调用应用
+
+
+        // 调用应用
         inputAppLoop(&inputAppParam); // 输入应用循环
 
         // 参数更新
@@ -170,6 +172,17 @@ void TIM6_IRQHandler(void) {
         I2C_DMACmd(I2C1, ENABLE);
         DMA_Cmd(DMA1_Channel6, ENABLE);
         TIM_Cmd(TIM6, ENABLE);
+    }
+}
+
+void TIM7_IRQHandler(void) {
+    if (TIM_GetITStatus(TIM7, TIM_IT_Update)) {
+        TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
+        DMA_Cmd(DMA1_Channel1, DISABLE);
+        DMA_SetCurrDataCounter(DMA1_Channel1, 2);
+        DMA_Cmd(DMA1_Channel1, ENABLE);
+
+        ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 启动 ADC（ADC2 自动同步）
     }
 }
 
@@ -223,7 +236,7 @@ inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {
         // 编码器反向移动选择上一个或者减少值
         pUIAppParam->eventGroup |= (1 << UI_EVENT_SELECT_PREV); // 设置选择上一个事件
         pUIAppParam->eventGroup |= (1 << UI_EVENT_VALUE_SUB);   // 设置值减少事件
-        
+
     } else {
         pUIAppParam->eventGroup = 0; // 无事件
     }

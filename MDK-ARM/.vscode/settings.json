@@ -21,6 +21,9 @@
         "stddef.h": "c",
         "app-ui.h": "c",
         "app-input.h": "c",
-        "drv-key.h": "c"
+        "drv-key.h": "c",
+        "app-signal.h": "c",
+        "dac.h": "c",
+        "adc.h": "c"
     }
 }

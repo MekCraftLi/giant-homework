@@ -399,6 +399,11 @@
               <FileType>1</FileType>
               <FilePath>..\Applications\app-ui.c</FilePath>
             </File>
+            <File>
+              <FileName>app-signal.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Applications\app-signal.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -448,6 +453,16 @@
               <FileName>dma.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Peripherals\dma.c</FilePath>
+            </File>
+            <File>
+              <FileName>adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Peripherals\adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>dac.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Peripherals\dac.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -36,6 +36,19 @@
 
 #define UI_SELECT_INDEX_QUANTITY 6
 
+#define FREQ_STEP                0.5f
+#define AMP_STEP                 0.3f
+#define PHASE_STEP               15
+
+#define FREQ_MAX                 6.0f
+#define FREQ_MIN                 1.0f
+
+#define AMP_MAX                  3.3f
+#define AMP_MIN                  1.5f
+
+#define PHASE_MAX                180
+#define PHASE_MIN                0
+
 
 
 
@@ -70,6 +83,7 @@ static void actionWhileFigureView(void* argument);
 static void browseAnimate(void* argument);
 static void singalInfoDisplay(void* argument);
 
+static void updateSignal(void* argument);
 
 
 /* ------- variables -------------------------------------------------------------------------------------------------*/
@@ -204,6 +218,13 @@ void uiAppInit(void* argument) {
     pParam->animateData.duration     = 0.3f;      // 动画持续时间
     pParam->dotMatrix                = dotMatrix; // 设置点阵图像素
     graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 30, 16, 79, 32, 5);
+
+    pParam->signalInfo[0].freq  = 1.0f; // 初始化信号1频率
+    pParam->signalInfo[1].freq  = 1.0f; // 初始化信号2频率
+    pParam->signalInfo[0].amp   = 3.3f; // 初始化信号1幅度
+    pParam->signalInfo[1].amp   = 3.3f; // 初始化信号2幅度
+    pParam->signalInfo[0].phase = 0;    // 初始化信号1相位
+    pParam->signalInfo[1].phase = 0;    // 初始化信号2相位
 }
 
 /**
@@ -243,8 +264,6 @@ static void actionWhileBrowse(void* argument) {
 
 
     memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
-
-    singalInfoDisplay(argument);
 
     sprintf((char*)(strBuffer[0]), "%.1fkHz", pParam->signalInfo[0].freq);
     sprintf((char*)(strBuffer[1]), "%.1fkHz", pParam->signalInfo[1].freq);
@@ -292,7 +311,8 @@ static void actionWhileEdit(void* argument) {
 
     memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
 
-    singalInfoDisplay(argument);
+    updateSignal(argument);
+
 
     sprintf((char*)(strBuffer[0]), "%.1fkHz", pParam->signalInfo[0].freq);
     sprintf((char*)(strBuffer[1]), "%.1fkHz", pParam->signalInfo[1].freq);
@@ -419,5 +439,110 @@ static void browseAnimate(void* argument) {
     }
 }
 
+void updateSignal(void* argument) {
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
 
-static void singalInfoDisplay(void* argument) {}
+    // 更新信号信息
+    switch (pParam->selectIndex) {
+        case SIGNAL_1_FREQ: {
+            if (pParam->eventGroup & (1 << UI_EVENT_VALUE_ADD)) {
+                if (pParam->signalInfo[0].freq + FREQ_STEP <= FREQ_MAX) {
+                    pParam->signalInfo[0].freq += FREQ_STEP; // 增加频率
+                } else {
+                    pParam->signalInfo[0].freq = FREQ_MAX; // 限制最大频率
+                }
+            } else if (pParam->eventGroup & (1 << UI_EVENT_VALUE_SUB)) {
+                if (pParam->signalInfo[0].freq - FREQ_STEP >= FREQ_MIN) {
+                    pParam->signalInfo[0].freq -= FREQ_STEP; // 减少频率
+                } else {
+                    pParam->signalInfo[0].freq = FREQ_MIN; // 限制最小频率
+                }
+            }
+
+        } break;
+        case SIGNAL_2_FREQ: {
+            if (pParam->eventGroup & (1 << UI_EVENT_VALUE_ADD)) {
+                if (pParam->signalInfo[1].freq + FREQ_STEP <= FREQ_MAX) {
+                    pParam->signalInfo[1].freq += FREQ_STEP; // 增加频率
+                } else {
+                    pParam->signalInfo[1].freq = FREQ_MAX; // 限制最大频率
+                }
+            } else if (pParam->eventGroup & (1 << UI_EVENT_VALUE_SUB)) {
+                if (pParam->signalInfo[1].freq - FREQ_STEP >= FREQ_MIN) {
+                    pParam->signalInfo[1].freq -= FREQ_STEP; // 减少频率
+                } else {
+                    pParam->signalInfo[1].freq = FREQ_MIN; // 限制最小频率
+                }
+            }
+
+        } break;
+        case SIGNAL_1_AMP: {
+            if (pParam->eventGroup & (1 << UI_EVENT_VALUE_ADD)) {
+                if (pParam->signalInfo[0].amp + AMP_STEP <= AMP_MAX) {
+                    pParam->signalInfo[0].amp += AMP_STEP; // 增加幅度
+                } else {
+                    pParam->signalInfo[0].amp = AMP_MAX; // 限制最大幅度
+                }
+            } else if (pParam->eventGroup & (1 << UI_EVENT_VALUE_SUB)) {
+                if (pParam->signalInfo[0].amp - AMP_STEP >= AMP_MIN) {
+                    pParam->signalInfo[0].amp -= AMP_STEP; // 减少幅度
+                } else {
+                    pParam->signalInfo[0].amp = AMP_MIN; // 限制最小幅度
+                }
+            }
+
+        } break;
+        case SIGNAL_2_AMP: {
+            if (pParam->eventGroup & (1 << UI_EVENT_VALUE_ADD)) {
+                if (pParam->signalInfo[1].amp + AMP_STEP <= AMP_MAX) {
+                    pParam->signalInfo[1].amp += AMP_STEP; // 增加幅度
+                } else {
+                    pParam->signalInfo[1].amp = AMP_MAX; // 限制最大幅度
+                }
+            } else if (pParam->eventGroup & (1 << UI_EVENT_VALUE_SUB)) {
+                if (pParam->signalInfo[1].amp - AMP_STEP >= AMP_MIN) {
+                    pParam->signalInfo[1].amp -= AMP_STEP; // 减少幅度
+                } else {
+                    pParam->signalInfo[1].amp = AMP_MIN; // 限制最小幅度
+                }
+            }
+
+        } break;
+        case SIGNAL_1_PHASE: {
+            if (pParam->eventGroup & (1 << UI_EVENT_VALUE_ADD)) {
+                if (pParam->signalInfo[0].phase + PHASE_STEP <= PHASE_MAX) {
+                    pParam->signalInfo[0].phase += PHASE_STEP; // 增加相位
+                } else {
+                    pParam->signalInfo[0].phase = PHASE_MAX; // 限制最大相位
+                }
+            } else if (pParam->eventGroup & (1 << UI_EVENT_VALUE_SUB)) {
+                if (pParam->signalInfo[0].phase - PHASE_STEP >= PHASE_MIN) {
+                    pParam->signalInfo[0].phase -= PHASE_STEP; // 减少相位
+                } else {
+                    pParam->signalInfo[0].phase = PHASE_MIN; // 限制最小相位
+                }
+            }
+
+        } break;
+        case SIGNAL_2_PHASE: {
+            if (pParam->eventGroup & (1 << UI_EVENT_VALUE_ADD)) {
+                if (pParam->signalInfo[1].phase + PHASE_STEP <= PHASE_MAX) {
+                    pParam->signalInfo[1].phase += PHASE_STEP; // 增加相位
+                } else {
+                    pParam->signalInfo[1].phase = PHASE_MAX; // 限制最大相位
+                }
+            } else if (pParam->eventGroup & (1 << UI_EVENT_VALUE_SUB)) {
+                if (pParam->signalInfo[1].phase - PHASE_STEP >= PHASE_MIN) {
+                    pParam->signalInfo[1].phase -= PHASE_STEP; // 减少相位
+                } else {
+                    pParam->signalInfo[1].phase = PHASE_MIN; // 限制最小相位
+                }
+            }
+
+        } break;
+        default: {
+            // 如果选择索引不在范围内，什么都不做
+            break;
+        }
+    }
+}

@@ -96,11 +96,14 @@ typedef struct {
     float elapsed;                      // 已经经过的时间
 } UISelDispAnimDataTypeDef;
 
+#ifndef SINGAL_TYPE_DEF
+#define SINGAL_TYPE_DEF
 typedef struct {
     float freq;      // 频率
     float amp;       // 幅度
     uint16_t phase;  // 相位
 } SignalInfoTypeDef; // 信号信息类型定义
+#endif               /* SINGAL_TYPE_DEF */
 
 
 // UI应用参数类型定义
