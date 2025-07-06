@@ -53,6 +53,8 @@ static void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE
 static void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY,
                                 uint8_t endX, uint8_t endY);
 static void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t font[16], uint8_t buffer[8][128]);
+RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0, uint8_t ey0,
+                                           uint8_t ex1, uint8_t ey1, float progress);
 
 
 
@@ -127,12 +129,13 @@ const uint8_t fontStar16x8[2][8]   = {{0x05, 0x0F, 0x02, 0x05, 0x00, 0x00, 0x00,
 
 
 GraphServIntfTypeDef graphServIntf = {
-    .drawRoundRect2DotMatrix = drawRoundRect2DotMatrix,
-    .bitToByte               = bitToByte,
-    .drawStarDot             = drawStarDot,
-    .drawLine                = drawLine,
-    .InverBufferWithMask     = InverBufferWithMask,
-    .printStringOnBuffer     = printStringOnBuffer,
+    .drawRoundRect2DotMatrix   = drawRoundRect2DotMatrix,
+    .bitToByte                 = bitToByte,
+    .drawStarDot               = drawStarDot,
+    .drawLine                  = drawLine,
+    .InverBufferWithMask       = InverBufferWithMask,
+    .printStringOnBuffer       = printStringOnBuffer,
+    .animateMovingResizingRect = animateMovingResizingRect,
 };
 
 // 字体
@@ -393,4 +396,50 @@ void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t fontByte[16], uint8_t
             }
         }
     }
+}
+
+RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0, uint8_t ey0,
+                                           uint8_t ex1, uint8_t ey1, float progress) {
+    RectParamTypeDef r;
+
+    // 限制进度在 [0,1]
+    if (progress < 0.0f)
+        progress = 0.0f;
+    if (progress > 1.0f)
+        progress = 1.0f;
+
+    // 平滑位置过渡（sine in-out）
+    float posFactor   = 0.5f * (1 - cosf(PI * progress));
+
+    // 尺寸缩放：1 → 0.3 → 1，最大压缩出现在 progress=0.5
+    float scaleFactor = 0.8f + 0.2f * cosf(2 * PI * progress);
+    // 范围 [0.3, 1.0]
+
+    // 起始中心和大小
+    float sx          = (sx0 + sx1) / 2.0f;
+    float sy          = (sy0 + sy1) / 2.0f;
+    float sw          = sx1 - sx0;
+    float sh          = sy1 - sy0;
+
+    // 目标中心和大小
+    float ex          = (ex0 + ex1) / 2.0f;
+    float ey          = (ey0 + ey1) / 2.0f;
+    float ew          = ex1 - ex0;
+    float eh          = ey1 - ey0;
+
+    // 当前中心位置
+    float cx          = sx + (ex - sx) * posFactor;
+    float cy          = sy + (ey - sy) * posFactor;
+
+    // 当前宽高
+    float w           = (sw + (ew - sw) * posFactor) * scaleFactor;
+    float h           = (sh + (eh - sh) * posFactor) * scaleFactor;
+
+    // 当前矩形
+    r.x0              = (int)(cx - w / 2.0f);
+    r.y0              = (int)(cy - h / 2.0f);
+    r.x1              = (int)(cx + w / 2.0f);
+    r.y1              = (int)(cy + h / 2.0f);
+
+    return r;
 }

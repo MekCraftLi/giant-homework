@@ -58,6 +58,13 @@ typedef struct {
 } FontTypeDef;
 
 typedef struct {
+    uint8_t x0;
+    uint8_t y0;
+    uint8_t x1;
+    uint8_t y1;
+} RectParamTypeDef; // 矩形参数类型定义
+
+typedef struct {
     void (*drawStar)(uint8_t graphBuffer[PAGE][WIDTH]); // 绘制五角星函数
     void (*drawRoundRect2DotMatrix)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
                                     uint8_t endY, uint8_t radius);                         // 绘制圆角矩形到点阵图像素
@@ -69,6 +76,8 @@ typedef struct {
     uint8_t dotMatrix[HEIGHT][WIDTH];
     void (*printStringOnBuffer)(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY,
                                 uint8_t endX, uint8_t endY); // 点阵图
+    RectParamTypeDef (*animateMovingResizingRect)(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0,
+                                                  uint8_t ey0, uint8_t ex1, uint8_t ey1, float progress);
 
 } GraphServIntfTypeDef;
 

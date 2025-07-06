@@ -201,6 +201,7 @@ void uiAppInit(void* argument) {
     pParam->selectIndex              = SIGNAL_1_FREQ;                           // 初始选择索引为信号1频率
     pParam->animateData.pCurSelInfo  = &uiSelInfoDispList[pParam->selectIndex]; // 设置当前选择信息
     pParam->animateData.pNextSelInfo = &uiSelInfoDispList[pParam->selectIndex + 1];
+    pParam->animateData.duration     = 0.3f;      // 动画持续时间
     pParam->dotMatrix                = dotMatrix; // 设置点阵图像素
     graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 30, 16, 79, 32, 5);
 }
@@ -351,10 +352,19 @@ static void browseAnimate(void* argument) {
 
     // 如果触发了切换选择事件
     if (pParam->eventGroup & (1 << UI_EVENT_SELECT_NEXT) || pParam->eventGroup & (1 << UI_EVENT_SELECT_PREV)) {
+
+        if (pParam->animateData.transitionState) {
+            // 如果上一次的动画没有加载完成，直接跳过
+            pParam->animateData.transitionState = 0;                                // 过渡状态结束
+            pParam->animateData.elapsed         = 0.0f;                             // 重置已经经过的时间
+            pParam->animateData.pCurSelInfo     = pParam->animateData.pNextSelInfo; // 更新当前选择信息
+        }
+
         // 进入过渡状态
         // 开始软定时器计时
         pParam->animateData.transitionState = 1;
         pParam->animateData.elapsed         = timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
+
 
         // 设置下一个选择信息
         if (pParam->eventGroup & (1 << UI_EVENT_SELECT_NEXT)) {
@@ -374,13 +384,26 @@ static void browseAnimate(void* argument) {
             pParam->animateData.pNextSelInfo = &uiSelInfoDispList[prevIndex];
             pParam->selectIndex              = (UISelectIndexEnum)prevIndex;
         }
-
+        pParam->animateData.elapsed = 0;
 
     } else if (pParam->animateData.transitionState == 1) {
 
         // 如果处于过渡状态，更新动画数据
 
-        pParam->animateData.elapsed = timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
+        pParam->animateData.elapsed += timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
+
+        // 计算过渡比例
+        RectParamTypeDef rectParam = graphServIntf.animateMovingResizingRect(
+            pParam->animateData.pCurSelInfo->rectParam.startX, pParam->animateData.pCurSelInfo->rectParam.startY,
+            pParam->animateData.pCurSelInfo->rectParam.endX, pParam->animateData.pCurSelInfo->rectParam.endY,
+            pParam->animateData.pNextSelInfo->rectParam.startX, pParam->animateData.pNextSelInfo->rectParam.startY,
+            pParam->animateData.pNextSelInfo->rectParam.endX, pParam->animateData.pNextSelInfo->rectParam.endY,
+            pParam->animateData.elapsed / pParam->animateData.duration);
+
+        pParam->selDispInfo.rectParam.startX = rectParam.x0;
+        pParam->selDispInfo.rectParam.startY = rectParam.y0;
+        pParam->selDispInfo.rectParam.endX   = rectParam.x1;
+        pParam->selDispInfo.rectParam.endY   = rectParam.y1;
 
         if (pParam->animateData.elapsed >= pParam->animateData.duration) {
             // 如果已经经过的时间超过了持续时间，结束过渡状态
@@ -388,6 +411,7 @@ static void browseAnimate(void* argument) {
             pParam->animateData.elapsed         = 0.0f;                             // 重置已经经过的时间
             pParam->animateData.pCurSelInfo     = pParam->animateData.pNextSelInfo; // 更新当前选择信息
         }
+
     } else if (pParam->animateData.transitionState == 0) {
 
         // 如果不处于过渡状态，直接显示当前选择信息
