@@ -19,7 +19,9 @@
 
 #include "../Services/graph-service.h"
 #include "app-ui.h"
+#include <stdio.h>
 #include <string.h>
+
 
 
 
@@ -66,6 +68,7 @@ static void actionWhileEdit(void* argument);
 static void actionWhileFigureView(void* argument);
 
 static void browseAnimate(void* argument);
+static void singalInfoDisplay(void* argument);
 
 
 
@@ -153,8 +156,6 @@ const uint8_t img[1024] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-const uint8_t font0[2][5]               = {{0xFE, 0x01, 0x11, 0x01, 0xFE}, {0x00, 0x01, 0x01, 0x01, 0x00}}; // 字体0
-const uint8_t font1[2][5]               = {{0x81, 0x81, 0xFF, 0x01, 0x01}, {0x00, 0x00, 0x01, 0x00, 0x00}}; // 字体1
 
 
 
@@ -163,6 +164,10 @@ const uint8_t font1[2][5]               = {{0x81, 0x81, 0xFF, 0x01, 0x01}, {0x00
 static uint8_t dotMatrix[HEIGHT][WIDTH] = {0};
 
 static uint8_t strBuffer[6][8];
+
+float debugTimeMeasure;
+
+SoftTimerHandle debugTimer;
 
 
 /* ------- function implement ----------------------------------------------------------------------------------------*/
@@ -179,6 +184,8 @@ void uiAppInit(void* argument) {
     memcpy(pParam->graphicsBuffers[0], img, sizeof(img)); // 初始化图形缓冲区
 
 
+	debugTimer = timeServIntf.softTimerRegister();
+		
     pParam->browseAnimateTimer      = timeServIntf.softTimerRegister();
     pParam->event                   = UI_EVENT_NONE;                           // 初始化事件为无
     pParam->curState                = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
@@ -224,9 +231,17 @@ static void actionWhileBrowse(void* argument) {
 
     memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
 
-    sprintf("%.2f", pParam->signalInfo[0].freq, strBuffer[0]);
+    singalInfoDisplay(argument);
+
+    sprintf((char*)(strBuffer[0]), "%.1f", pParam->signalInfo[0].freq);
+    sprintf((char*)(strBuffer[1]), "%.1f", pParam->signalInfo[1].freq);
+    sprintf((char*)(strBuffer[2]), "%.1f", pParam->signalInfo[0].amp);
+    sprintf((char*)(strBuffer[3]), "%.1f", pParam->signalInfo[1].amp);
+    sprintf((char*)(strBuffer[4]), "%d", pParam->signalInfo[0].phase);
+    sprintf((char*)(strBuffer[5]), "%d", pParam->signalInfo[1].phase);
 
 
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], "1.1", 30, 32, 79, 16);
 
 
     browseAnimate(argument); // 浏览动画处理
@@ -302,3 +317,6 @@ static void browseAnimate(void* argument) {
         pParam->selDispInfo = *pParam->animateData.pCurSelInfo;
     }
 }
+
+
+static void singalInfoDisplay(void* argument) {}

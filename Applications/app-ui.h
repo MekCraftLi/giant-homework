@@ -98,7 +98,7 @@ typedef struct {
 typedef struct {
     float freq;      // 频率
     float amp;       // 幅度
-    float phase;     // 相位
+    uint16_t phase;  // 相位
 } SignalInfoTypeDef; // 信号信息类型定义
 
 

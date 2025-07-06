@@ -73,6 +73,7 @@ static void uiParamUpdate(UIAppParamTypeDef*);
 int main(void) {
 
     /* ------ local variables ------------------------------------------------*/
+	
     // TIM对象
     TIMObjTypeDef timFlashOLED;
 

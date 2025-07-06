@@ -51,6 +51,13 @@
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
 typedef struct {
+    uint8_t character;
+    uint8_t height;
+    uint8_t width;
+    uint8_t* fontByte;
+} FontTypeDef;
+
+typedef struct {
     void (*drawStar)(uint8_t graphBuffer[PAGE][WIDTH]); // 绘制五角星函数
     void (*drawRoundRect2DotMatrix)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
                                     uint8_t endY, uint8_t radius);                         // 绘制圆角矩形到点阵图像素
@@ -59,7 +66,9 @@ typedef struct {
     void (*drawLine)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
                      uint8_t endY);                                                        // 绘制线段
     void (*InverBufferWithMask)(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH]); // 使用掩码反转缓冲区
-    uint8_t dotMatrix[HEIGHT][WIDTH];                                                      // 点阵图
+    uint8_t dotMatrix[HEIGHT][WIDTH];
+    void (*printStringOnBuffer)(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY,
+                                uint8_t endX, uint8_t endY); // 点阵图
 
 } GraphServIntfTypeDef;
 

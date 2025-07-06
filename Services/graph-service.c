@@ -50,6 +50,9 @@ static void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t st
                                     uint8_t endY, uint8_t radius);
 static void drawStar(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]);
 static void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH]);
+static void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY,
+                                uint8_t endX, uint8_t endY);
+static void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t font[16], uint8_t buffer[8][128]);
 
 
 
@@ -57,12 +60,27 @@ static void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE
 
 /* ------- variables -------------------------------------------------------------------------------------------------*/
 
+const uint8_t font016x8[2][8]      = {{0x7F, 0x80, 0x88, 0x80, 0x7F, 0x00, 0x00, 0x00},
+                                      {0x00, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00}};
+const uint8_t font116x8[2][8]      = {{0x81, 0x81, 0xFF, 0x80, 0x80, 0x00, 0x00, 0x00},
+                                      {0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00}};
+const uint8_t fontDot16x8[2][8]    = {{0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+                                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; // 小数点
+
 GraphServIntfTypeDef graphServIntf = {
     .drawRoundRect2DotMatrix = drawRoundRect2DotMatrix,
     .bitToByte               = bitToByte,
     .drawStarDot             = drawStarDot,
     .drawLine                = drawLine,
     .InverBufferWithMask     = InverBufferWithMask,
+    .printStringOnBuffer     = printStringOnBuffer,
+};
+
+// 字体
+FontTypeDef font[] = {
+    {'0', 9, 6, (uint8_t*)font016x8},
+    {'1', 9, 6, (uint8_t*)font116x8},
+    {'.', 2, 2, (uint8_t*)fontDot16x8},
 };
 
 
@@ -229,6 +247,85 @@ void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH
                 uint8_t page    = y / 8;
                 uint8_t bit_pos = y % 8;
                 buffer[page][x] ^= (1 << bit_pos);
+            }
+        }
+    }
+}
+
+void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY, uint8_t endX,
+                         uint8_t endY) {
+    uint8_t totalWidth  = 0; // 当前字符串总宽度
+    uint8_t totalHeight = 0; // 当前字符串总高度
+    for (uint8_t i = 0; str[i] != '\0'; i++) {
+        for (uint8_t j = 0; j < sizeof(font) / sizeof(FontTypeDef); j++) {
+            if (str[i] == font[j].character) {
+                totalWidth += font[j].width; // 累加字符宽度
+                if (font[j].height > totalHeight) {
+                    totalHeight = font[j].height; // 更新总高度
+                }
+                break;
+            }
+        }
+    }
+
+    uint8_t offsetX = 0;
+    uint8_t offsetY = 0;
+
+
+    if (totalWidth < (endX - startX)) {
+        offsetX = (endX - startX - totalWidth) / 2; // 水平居中
+    }
+
+
+    if (totalHeight < (startY - endY)) {
+        offsetY = (startY - endY - totalHeight) / 2; // 垂直居中
+    }
+
+    uint8_t cursor = startX + offsetX;
+    uint8_t charY  = startY - offsetY; // 字符的起始Y坐标
+
+    for (uint8_t i = 0; str[i] != '\0'; i++) {
+        for (uint8_t j = 0; j < sizeof(font) / sizeof(FontTypeDef); j++) {
+            if (str[i] == font[j].character) {
+                // 计算字符在缓冲区中的起始位置
+                // 打印字符到缓冲区
+                printCharOnBuffer(cursor, charY, font[j].fontByte, buffer);
+                cursor += font[j].width; // 更新光标位置
+                break;
+            }
+        }
+    }
+}
+
+
+void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t fontByte[16], uint8_t buffer[8][128]) {
+    if (x > 120 || y > 63)
+        return; // 越界检查
+
+    uint8_t page      = y / 8;     // 起始页（从下往上）
+    uint8_t bitOffset = 8 - y % 8; // 像素行偏移（不为0说明跨页）
+
+    for (uint8_t i = 0; i < 8; i++) {    // 字符列数 = 8
+        uint8_t lower = fontByte[i];     // 字模下半部分（低位）
+        uint8_t upper = fontByte[i + 8]; // 字模上半部分（高位）
+
+        // 合成到页 buffer 中（注意跨页处理）
+        if (bitOffset == 0) {
+            // 恰好对齐页边界
+            buffer[page - 1][x + i] |= lower;
+            if (page - 2 >= 0) {
+                buffer[page - 2][x + i] |= upper;
+            }
+        } else {
+            // 跨页，需要移位叠加
+            uint8_t lowerShifted = lower >> bitOffset;
+            uint8_t upperShifted = (upper >> bitOffset) | (lower << (8 - bitOffset));
+            uint8_t top          = upper << (8 - bitOffset);
+
+            buffer[page][x + i] |= lowerShifted;
+            buffer[page - 1][x + i] |= upperShifted;
+            if (page - 2 >= 0) {
+                buffer[page - 2][x + i] |= top;
             }
         }
     }
