@@ -112,18 +112,13 @@ void signalAppInit(void* argument) {
     // 5. 配置定时器
     timIntf.init(&dacTimer, TIM2);
     timIntf.init(&adcSamplingTimer, TIM7);
-	timIntf.init(&debugTimer, TIM4);
 
     // 设定频率
-    timIntf.setFrequency(&dacTimer, 6000 * WAVE_LEN);
-	timIntf.setFrequency(&debugTimer, 6000 * WAVE_LEN);
 	
-	timIntf.countConfig(&dacTimer, dacTimer.clkFreq, 40);
-	timIntf.countConfig(&debugTimer, dacTimer.clkFreq, 40);
+	timIntf.countConfig(&dacTimer, dacTimer.clkFreq, 120);
 
     // 设定触发源
     TIM_SelectOutputTrigger(dacTimer.tim, TIM_TRGOSource_Update);
-	TIM_SelectOutputTrigger(debugTimer.tim, TIM_TRGOSource_Update);
 
     // 设定频率
     timIntf.setFrequency(&adcSamplingTimer, SAMPLING_FREQ); // 配置ADC采样定时器为50kHz
@@ -152,7 +147,7 @@ void generateSineWave512(uint16_t* buf, float amplitude, float phase_deg) {
         float value  = sinf(angle) + 1; // 范围：-1 ~ +1
 
         // 幅度调整为 0~amplitude，然后加上 offset
-        float scaled = value * (amplitude / 3.3f) * DAC_RESOLUTION / 2;
+        float scaled = value * (amplitude / 3.3f) * DAC_RESOLUTION / 2 * 3.2f / 3.3f;
 
         // 限制范围到 0~4095
         if (scaled < 0)
