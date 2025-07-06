@@ -117,6 +117,9 @@ void signalAppInit(void* argument) {
     // 设定频率
     timIntf.setFrequency(&dacTimer, 6000 * WAVE_LEN);
 	timIntf.setFrequency(&debugTimer, 6000 * WAVE_LEN);
+	
+	timIntf.countConfig(&dacTimer, dacTimer.clkFreq, 40);
+	timIntf.countConfig(&debugTimer, dacTimer.clkFreq, 40);
 
     // 设定触发源
     TIM_SelectOutputTrigger(dacTimer.tim, TIM_TRGOSource_Update);
