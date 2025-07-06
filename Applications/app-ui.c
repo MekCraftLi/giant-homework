@@ -77,10 +77,19 @@ static void singalInfoDisplay(void* argument);
 
 // UI状态机列表
 static UIStateTransitionTypeDef uiStateMachineList[] = {
-    {UI_STATE_ADJUST_BROUWSE, UI_STATE_ADJUST_EDIT, UI_EVENT_VALUE_SELECT, actionWhileBrowse},
-    {UI_STATE_ADJUST_EDIT, UI_STATE_ADJUST_BROUWSE, UI_EVENT_VALUE_UNSELECT, actionWhileEdit},
-    {UI_STATE_ADJUST_BROUWSE, UI_STATE_FIGURE_VIEW, UI_EVENT_FIGURE_VIEW, actionWhileBrowse},
+    {UI_STATE_ADJUST_BROUWSE, UI_STATE_ADJUST_EDIT, UI_EVENT_VALUE_SELECT,
+     actionWhileBrowse}, // 浏览状态下选择值进入编辑状态
+    {UI_STATE_ADJUST_BROUWSE, UI_STATE_FIGURE_VIEW, UI_EVENT_FIGURE_VIEW,
+     actionWhileBrowse}, // 浏览状态下查看图形进入图形查看状态
+    {UI_STATE_ADJUST_BROUWSE, UI_STATE_ADJUST_BROUWSE, UI_EVENT_NONE,
+     actionWhileBrowse}, // 浏览状态下无事件保持浏览状态
+    {UI_STATE_ADJUST_EDIT, UI_STATE_ADJUST_BROUWSE, UI_EVENT_VALUE_UNSELECT,
+     actionWhileEdit},                                                            // 编辑状态下取消选择返回浏览状态
+    {UI_STATE_ADJUST_EDIT, UI_STATE_ADJUST_EDIT, UI_EVENT_NONE, actionWhileEdit}, // 编辑状态下无事件保持编辑状态
+
     {UI_STATE_FIGURE_VIEW, UI_STATE_ADJUST_BROUWSE, UI_EVENT_FIGURE_EXIT, actionWhileFigureView},
+    {UI_STATE_FIGURE_VIEW, UI_STATE_FIGURE_VIEW, UI_EVENT_NONE,
+     actionWhileFigureView}, // 图形查看状态下无事件保持图形查看状态
 };
 
 // UI选择信息显示数据
@@ -88,15 +97,15 @@ static UISelDispInfoTypeDef uiSelInfoDispList[] = {
     // 信号1频率选择数据
     {{SIGNAL_1_FREQ}, {32, 17, 76, 29, 3}},
     // 信号2频率选择数据
-    {{SIGNAL_2_FREQ}, {76, 16, 128, 32, 3}},
+    {{SIGNAL_2_FREQ}, {80, 17, 126, 29, 3}},
     // 信号1幅度选择数据
-    {{SIGNAL_1_AMP}, {30, 32, 76, 48, 3}},
+    {{SIGNAL_1_AMP}, {32, 33, 76, 45, 3}},
     // 信号2幅度选择数据
-    {{SIGNAL_2_AMP}, {76, 32, 128, 48, 3}},
+    {{SIGNAL_2_AMP}, {80, 33, 126, 45, 3}},
     // 信号1相位选择数据
-    {{SIGNAL_1_PHASE}, {30, 48, 76, 64, 3}},
+    {{SIGNAL_1_PHASE}, {32, 49, 76, 61, 3}},
     // 信号2相位选择数据
-    {{SIGNAL_2_PHASE}, {76, 48, 128, 64, 3}},
+    {{SIGNAL_2_PHASE}, {80, 49, 126, 61, 3}},
 };
 
 
@@ -184,14 +193,15 @@ void uiAppInit(void* argument) {
     memcpy(pParam->graphicsBuffers[0], img, sizeof(img)); // 初始化图形缓冲区
 
 
-    debugTimer                      = timeServIntf.softTimerRegister();
+    debugTimer                       = timeServIntf.softTimerRegister();
 
-    pParam->browseAnimateTimer      = timeServIntf.softTimerRegister();
-    pParam->event                   = UI_EVENT_NONE;                           // 初始化事件为无
-    pParam->curState                = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
-    pParam->selectIndex             = SIGNAL_1_FREQ;                           // 初始选择索引为信号1频率
-    pParam->animateData.pCurSelInfo = &uiSelInfoDispList[pParam->selectIndex]; // 设置当前选择信息
-    pParam->dotMatrix               = dotMatrix;                               // 设置点阵图像素
+    pParam->browseAnimateTimer       = timeServIntf.softTimerRegister();
+    pParam->eventGroup               = 0;                                       // 初始化事件为无
+    pParam->curState                 = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
+    pParam->selectIndex              = SIGNAL_1_FREQ;                           // 初始选择索引为信号1频率
+    pParam->animateData.pCurSelInfo  = &uiSelInfoDispList[pParam->selectIndex]; // 设置当前选择信息
+    pParam->animateData.pNextSelInfo = &uiSelInfoDispList[pParam->selectIndex + 1];
+    pParam->dotMatrix                = dotMatrix; // 设置点阵图像素
     graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 30, 16, 79, 32, 5);
 }
 
@@ -209,14 +219,16 @@ void uiAppLoop(void* argument) {
 
     for (int i = 0; i < sizeof(uiStateMachineList) / sizeof(UIStateTransitionTypeDef); i++) {
         if (uiStateMachineList[i].curState == pParam->curState) {
-            if (pParam->event == uiStateMachineList[i].event) {
+            if (pParam->eventGroup & (1 << uiStateMachineList[i].event) ||
+                uiStateMachineList[i].event == UI_EVENT_NONE) {
                 pParam->curState = uiStateMachineList[i].nextState;
+                uiStateMachineList[i].actionFunc(argument);
                 break;
             }
-            // 执行状态动作函数
-            uiStateMachineList[i].actionFunc(argument);
         }
     }
+
+    pParam->eventGroup = 0;
 }
 
 /**
@@ -241,12 +253,18 @@ static void actionWhileBrowse(void* argument) {
     sprintf((char*)(strBuffer[5]), "%d °", pParam->signalInfo[1].phase);
 
 
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[0], 30, 29, 79, 16);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[1], 76, 29, 128, 16);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[2], 30, 46, 79, 32);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[3], 76, 46, 128, 32);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[4], 30, 62, 79, 48);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], strBuffer[5], 76, 62, 128, 48);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[0], 30, 29,
+                                      79, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[1], 76, 29,
+                                      128, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[2], 30, 46,
+                                      79, 32);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[3], 76, 46,
+                                      128, 32);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[4], 30, 62,
+                                      79, 48);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[5], 76, 62,
+                                      128, 48);
 
 
 
@@ -266,7 +284,52 @@ static void actionWhileBrowse(void* argument) {
  *
  * @param argument
  */
-static void actionWhileEdit(void* argument) {}
+static void actionWhileEdit(void* argument) {
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+    memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
+
+
+    memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
+
+    singalInfoDisplay(argument);
+
+    sprintf((char*)(strBuffer[0]), "%.1fkHz", pParam->signalInfo[0].freq);
+    sprintf((char*)(strBuffer[1]), "%.1fkHz", pParam->signalInfo[1].freq);
+    sprintf((char*)(strBuffer[2]), "%.1f V", pParam->signalInfo[0].amp);
+    sprintf((char*)(strBuffer[3]), "%.1f V", pParam->signalInfo[1].amp);
+    sprintf((char*)(strBuffer[4]), "%d °", pParam->signalInfo[0].phase);
+    sprintf((char*)(strBuffer[5]), "%d °", pParam->signalInfo[1].phase);
+
+    for (uint8_t i = sizeof(strBuffer) / sizeof(strBuffer[0]); i > 0; i--) {
+        if (strBuffer[pParam->selectIndex][i - 1] != '\0') {
+            strBuffer[pParam->selectIndex][i] = '*';
+            break;
+        }
+    }
+
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[0], 30, 29,
+                                      79, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[1], 76, 29,
+                                      128, 16);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[2], 30, 46,
+                                      79, 32);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[3], 76, 46,
+                                      128, 32);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[4], 30, 62,
+                                      79, 48);
+    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[5], 76, 62,
+                                      128, 48);
+
+
+
+    // 绘制当前选择信息的圆角矩形
+    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
+                                          pParam->selDispInfo.rectParam.startY, pParam->selDispInfo.rectParam.endX,
+                                          pParam->selDispInfo.rectParam.endY, pParam->selDispInfo.rectParam.radius);
+
+    // 将圆角矩形区域颜色反转
+    graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
+}
 
 
 /**
@@ -287,23 +350,31 @@ static void browseAnimate(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
 
     // 如果触发了切换选择事件
-    if (pParam->event == UI_EVENT_SELECT_NEXT || pParam->event == UI_EVENT_SELECT_PREV) {
+    if (pParam->eventGroup & (1 << UI_EVENT_SELECT_NEXT) || pParam->eventGroup & (1 << UI_EVENT_SELECT_PREV)) {
         // 进入过渡状态
         // 开始软定时器计时
         pParam->animateData.transitionState = 1;
         pParam->animateData.elapsed         = timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
 
         // 设置下一个选择信息
-        if (pParam->event == UI_EVENT_SELECT_NEXT) {
+        if (pParam->eventGroup & (1 << UI_EVENT_SELECT_NEXT)) {
+
+
             // 如果是下一个选择事件，更新选择索引并获取下一个选择信息
             uint8_t nextIndex = pParam->selectIndex;
             UI_SELECTED_GOTO_NEXT(nextIndex);
             pParam->animateData.pNextSelInfo = &uiSelInfoDispList[nextIndex];
-        } else if (pParam->event == UI_EVENT_SELECT_PREV) {
+            pParam->selectIndex              = (UISelectIndexEnum)nextIndex;
+
+        } else if (pParam->eventGroup & (1 << UI_EVENT_SELECT_PREV)) {
+
+
             uint8_t prevIndex = pParam->selectIndex;
             UI_SELECTED_GOTO_PREV(prevIndex);
             pParam->animateData.pNextSelInfo = &uiSelInfoDispList[prevIndex];
+            pParam->selectIndex              = (UISelectIndexEnum)prevIndex;
         }
+
 
     } else if (pParam->animateData.transitionState == 1) {
 

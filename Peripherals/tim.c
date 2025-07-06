@@ -300,7 +300,7 @@ TIMErrCode timEncoderConfig(TIMObjTypeDef* timObj) {
     TIM_TimeBaseInit(timObj->tim, &TIM_TimeBaseStructure);
 
     TIM_EncoderInterfaceConfig(timObj->tim, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Falling);
-    TIM_SetCounter(timObj->tim, 0);
+    TIM_SetCounter(timObj->tim, 32767);
     TIM_Cmd(timObj->tim, ENABLE);
 
     return TIM_SUCCESS;

@@ -18,8 +18,9 @@
 /* ------- includes --------------------------------------------------------------------------------------------------*/
 
 #include "Bsp-Key.h"
-#include <stdlib.h>
 #include "misc.h"
+#include <stdlib.h>
+
 
 
 
@@ -83,13 +84,13 @@ KeyTypeDef* keyCreate(uint16_t pin, void (*callback)(void*)) {
 void keyFallingTriggerCallback(KeyTypeDef* pKey, void* argument) {
     // 和上一次触发事件相差大于5000即认为稳定
     if (sysTick - pKey->keylastPressTime > 500) {
-        
+
         if (pKey->keyCallback != NULL) {
             pKey->keyCallback(argument);
         }
     }
-	
-	pKey->keylastPressTime = sysTick;
+
+    pKey->keylastPressTime = sysTick;
 
     EXTI_ClearITPendingBit(pKey->keyPin); // 清除中断标志位
 }

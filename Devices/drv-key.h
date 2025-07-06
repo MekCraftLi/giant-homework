@@ -1,13 +1,13 @@
 /**
  ***********************************************************************************************************************
- * @file           : app-input.h
- * @brief          : 输入数据处理应用
+ * @file           : drv-key.h
+ * @brief          : 按键对象的定义
  * @author         : 李嘉豪
  * @date           : 2025-07-06
  ***********************************************************************************************************************
  * @attention
  *
- * 输入信号处理, 负责事件产生和信号信息的更新
+ * 按键对象的定义和方法声明
  *
  ***********************************************************************************************************************
  **/
@@ -17,14 +17,15 @@
 
 /* Define to prevent recursive inclusion -----------------------------------------------------------------------------*/
 
-#ifndef __APP_INPUT_H__
-#define __APP_INPUT_H__
+#ifndef __DRV_KEY_H__
+#define __DRV_KEY_H__
 
 
 
 
 /*-------- includes --------------------------------------------------------------------------------------------------*/
 
+#include "../Peripherals/gpio.h"
 #include "../Services/time-service.h"
 #include <stdint.h>
 
@@ -34,27 +35,17 @@
 
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
-typedef enum {
-    INPUT_EVENT_NONE,
-    INPUT_EVENT_ENCODER_MOVE_POSITIVE, // 编码器正向移动事件
-    INPUT_EVENT_ENCODER_MOVE_NEGATIVE, // 编码器反向移动事件
-    INPUT_EVENT_KEY_0_CLICK,           // 按键点击事件
-    INPUT_EVENT_KEY_1_CLICK,           // 按键点击事件
-
-} InputEventEnum; // 输入事件枚举类型定义
-
+typedef struct {
+    GPIOPortEnum port;          // 按键所在GPIO端口
+    GPIOPinEnum pin;            // 按键所在GPIO引脚
+    uint8_t pressed;            // 按键是否按下
+    SoftTimerHandle pressTimer; // 按键按下定时器句柄
+} KeyObjTypeDef;                // 按键对象类型
 
 typedef struct {
-    InputEventEnum event;  // 输入事件
-    uint16_t encoderValue; // 编码器值
-    uint8_t key0Pressed;   // 按键1是否按下
-    uint8_t key1Pressed;   // 按键2是否按下
-
-    SoftTimerHandle key0Timer; // 按键1定时器句柄
-    SoftTimerHandle key1Timer; // 按键2定时器句柄
-
-} InputAppParamTypeDef; // 输入应用参数类型定义
-
+    void (*init)(KeyObjTypeDef* keyObj, GPIOPortEnum port, GPIOPinEnum pin); // 初始化按键对象
+    uint8_t (*isPressed)(KeyObjTypeDef* keyObj);                             // 检查按键是否按下
+} KeyIntfTypeDef;                                                            // 按键接口类型定义
 
 
 
@@ -78,10 +69,8 @@ typedef struct {
 
 /*-------- function prototypes ---------------------------------------------------------------------------------------*/
 
-void inputAppInit(void* argument); // 输入应用初始化函数
-void inputAppLoop(void* argument); // 输入应用循环函数
 
 
 
 
-#endif /* __APP_INPUT_H__ */
+#endif /* __DRV_KEY_H__ */

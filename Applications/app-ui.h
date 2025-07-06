@@ -35,7 +35,7 @@
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
 typedef enum {
-    UI_EVENT_NONE,           // 无事件
+
     UI_EVENT_VALUE_ADD,      // 值增加事件
     UI_EVENT_VALUE_SUB,      // 值减少事件
     UI_EVENT_VALUE_SELECT,   // 值选择事件
@@ -44,6 +44,7 @@ typedef enum {
     UI_EVENT_SELECT_PREV,    // 选择上一个事件
     UI_EVENT_FIGURE_VIEW,    // 图形查看事件
     UI_EVENT_FIGURE_EXIT,    // 图形退出事件
+    UI_EVENT_NONE,           // 无事件
 } UIEventEnum;               // UI事件枚举类型定义
 
 typedef enum {
@@ -107,7 +108,7 @@ typedef struct {
     void* graphicsBuffers[2];      // 图形缓冲区
     void* dotMatrix;               // 点阵图像素
     uint8_t bufferIndex;           // 图形缓冲区索引
-    UIEventEnum event;             // 当前事件
+    uint8_t eventGroup;            // 当前事件组
     UIStateEnum curState;          // 当前状态
     UISelectIndexEnum selectIndex; // 当前选择索引
 

@@ -263,7 +263,7 @@ GPIOErrCode pinInitWithEXTI(GPIOPortEnum port, GPIOPinEnum pin, GPIOModeEnum mod
     }
     enablePort(port);
 
-    uint16_t pinBit = pin << (uint8_t)pin;
+    uint16_t pinBit = 1 << (uint8_t)pin;
 
     // 之前写好的GPIO初始化函数
     gpioModeInitWithEXTI(GPIOx, pinBit, (GPIOMode_TypeDef)mode, (EXTITrigger_TypeDef)extiTrigger);

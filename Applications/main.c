@@ -118,13 +118,15 @@ int main(void) {
 
     while (1) {
         mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
+		
+		
+		// 调用应用
+        inputAppLoop(&inputAppParam); // 输入应用循环
 
         // 参数更新
         uiParamUpdate(&uiAppParam);
 
 
-        // 调用应用
-        inputAppLoop(&inputAppParam); // 输入应用循环
         uiAppLoop(&uiAppParam);
 
         // 切换DMA缓冲区索引
@@ -171,10 +173,58 @@ void TIM6_IRQHandler(void) {
     }
 }
 
+void EXTI9_5_IRQHandler(void) {
+    if (EXTI_GetITStatus(EXTI_Line5)) {     // 检查外部中断线5
+        EXTI_ClearITPendingBit(EXTI_Line5); // 清除中断标志
+
+        float keyUpdateTime = timeServIntf.getElapsedTime(inputAppParam.key0Timer);
+        if (keyUpdateTime > 0.7f) {
+            inputAppParam.key0Pressed = 1;
+        }
+    }
+}
+
+void EXTI15_10_IRQHandler(void) {
+    if (EXTI_GetITStatus(EXTI_Line15)) {     // 检查外部中断线15
+        EXTI_ClearITPendingBit(EXTI_Line15); // 清除中断标志
+
+        float keyUpdateTime = timeServIntf.getElapsedTime(inputAppParam.key1Timer);
+        if (keyUpdateTime > 0.7f) {
+            inputAppParam.key1Pressed = 1;
+        }
+    }
+}
+
 
 /**
  * @brief UI参数更新函数
  *
  * @param pUIAppParam
  */
-inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {}
+inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {
+
+    // 事件映射
+
+    if (inputAppParam.event == INPUT_EVENT_KEY_0_CLICK) {
+        // 按下0进入或退出图形查看状态
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_FIGURE_EXIT);
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_FIGURE_VIEW);
+    } else if (inputAppParam.event == INPUT_EVENT_KEY_1_CLICK) {
+        // 按下1进入或退出编辑状态
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_VALUE_SELECT);
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_VALUE_UNSELECT);
+
+    } else if (inputAppParam.event == INPUT_EVENT_ENCODER_MOVE_POSITIVE) {
+        // 编码器正向移动选择下一个或者增加值
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_SELECT_NEXT); // 设置选择下一个事件
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_VALUE_ADD);   // 设置值增加事件
+
+    } else if (inputAppParam.event == INPUT_EVENT_ENCODER_MOVE_NEGATIVE) {
+        // 编码器反向移动选择上一个或者减少值
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_SELECT_PREV); // 设置选择上一个事件
+        pUIAppParam->eventGroup |= (1 << UI_EVENT_VALUE_SUB);   // 设置值减少事件
+        
+    } else {
+        pUIAppParam->eventGroup = 0; // 无事件
+    }
+}

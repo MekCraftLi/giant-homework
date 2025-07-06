@@ -20,6 +20,7 @@
         "time-service.h": "c",
         "stddef.h": "c",
         "app-ui.h": "c",
-        "app-input.h": "c"
+        "app-input.h": "c",
+        "drv-key.h": "c"
     }
 }

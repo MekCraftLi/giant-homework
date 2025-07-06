@@ -260,10 +260,7 @@ void drawStar(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]
  */
 void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
                              uint8_t endY, uint8_t radius) {
-    // 确保起始和结束坐标合法
-    if (startX >= WIDTH || startY >= HEIGHT || endX >= WIDTH || endY >= HEIGHT || startX > endX || startY > endY) {
-        return;
-    }
+
 
     // 逐行绘制
     for (uint8_t y = startY; y <= endY; y++) {

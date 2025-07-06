@@ -105,8 +105,8 @@ void delaySWithSyst(uint32_t s) {
 }
 
 float getGlobalTime(void) {
-    uint16_t systTimSub = TIM_GetCounter(systTimObjSub.tim); // 获取定时器计数值
-    uint16_t systTim    = TIM_GetCounter(systTimObj.tim);
+    uint16_t systTimSub = systTimObjSub.tim->CNT; // 获取定时器计数值
+    uint16_t systTim    = systTimObj.tim->CNT;
     globalTime          = (float)systTimSub / 1000000.0f; // 将计数值转换为秒
     globalTime += (float)systTim * 0xFFFF / 1000000.0f;
     return globalTime; // 返回全局时间
