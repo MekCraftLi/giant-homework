@@ -31,6 +31,7 @@
 
 /* ------- define ----------------------------------------------------------------------------------------------------*/
 
+#define MAX_POINTS 1000
 
 
 
@@ -55,7 +56,7 @@ static void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, ui
 static void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t font[16], uint8_t buffer[8][128]);
 RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0, uint8_t ey0,
                                            uint8_t ex1, uint8_t ey1, float progress);
-
+static void insertNewPoint(uint8_t new_x, uint8_t new_y, uint8_t pixelDrawCount[HEIGHT][WIDTH]);
 
 
 
@@ -136,6 +137,7 @@ GraphServIntfTypeDef graphServIntf = {
     .InverBufferWithMask       = InverBufferWithMask,
     .printStringOnBuffer       = printStringOnBuffer,
     .animateMovingResizingRect = animateMovingResizingRect,
+    .insertNewPoint            = insertNewPoint,
 };
 
 // 字体
@@ -149,6 +151,7 @@ FontTypeDef font[] = {
     {'*', 8, 5, (uint8_t*)fontStar16x8}, // 星号
 };
 
+static PointTypeDef points[MAX_POINTS]; // 点阵图点存储
 
 
 
@@ -442,4 +445,32 @@ RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1
     r.y1              = (int)(cy + h / 2.0f);
 
     return r;
+}
+
+
+void insertNewPoint(uint8_t new_y, uint8_t new_x, uint8_t pixelDrawCount[HEIGHT][WIDTH]) {
+    static uint16_t count;
+    static uint16_t head = 0; // 队列头指针
+
+    // 如果队列满，删除最旧的点（从 head 出队）
+    if (count == MAX_POINTS) {
+        PointTypeDef old = points[head];
+
+        if (pixelDrawCount[old.y][old.x] > 0) {
+            pixelDrawCount[old.y][old.x]--;
+        }
+
+        head = (head + 1) % MAX_POINTS;
+        count--;
+    }
+
+    // 插入新点到 tail
+    uint16_t tail  = (head + count) % MAX_POINTS;
+    points[tail].x = new_x;
+    points[tail].y = new_y;
+    count++;
+
+    // 增加新点计数
+
+    pixelDrawCount[new_y][new_x]++;
 }

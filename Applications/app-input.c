@@ -89,7 +89,7 @@ void inputAppLoop(void* argument) {
 
     if (pParam->key0Pressed - lastKey0State == 1) {
         pParam->event = INPUT_EVENT_KEY_0_CLICK; // 按键1点击事件
-        lastKey1State = pParam->key0Pressed;     // 更新按键1状态
+        lastKey0State = pParam->key0Pressed;     // 更新按键1状态
     } else if (pParam->key1Pressed - lastKey1State == 1) {
         pParam->event = INPUT_EVENT_KEY_1_CLICK; // 按键2点击事件
         lastKey1State = pParam->key1Pressed;     // 更新按键2状态

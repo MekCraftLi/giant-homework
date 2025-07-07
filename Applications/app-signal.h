@@ -49,7 +49,7 @@ typedef struct {
 
 typedef struct {
     SignalInfoTypeDef signalInfo[2]; // 信号信息数组
-    uint16_t sign[2][WAVE_LEN];      // 信号数据数组
+    uint16_t sign[2][WAVE_LEN * 2];  // 信号数据数组
     __packed union {
         uint32_t adcBuf; // ADC采样值
         __packed struct {
@@ -57,6 +57,8 @@ typedef struct {
             uint16_t signal2; // 信号2采样值
         } adcValues;
     } adcData; // ADC数据联合体
+
+    uint8_t updateFlag; // 更新标志位
 
 } SignalAppParamTypeDef; // 信号应用参数类型定义
 

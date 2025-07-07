@@ -236,8 +236,7 @@ void uiAppLoop(void* argument) {
     // 遍历状态机列表，检查每个状态机的条件函数
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
 
-    // 处理前切换了缓冲区
-    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
+
 
     for (int i = 0; i < sizeof(uiStateMachineList) / sizeof(UIStateTransitionTypeDef); i++) {
         if (uiStateMachineList[i].curState == pParam->curState) {
@@ -259,8 +258,18 @@ void uiAppLoop(void* argument) {
  * @param argument
  */
 static void actionWhileBrowse(void* argument) {
+
+
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
     memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
+
+    if (pParam->eventGroup & (1 << UI_EVENT_FIGURE_VIEW)) {
+        // 如果是查看图形事件，直接进入图形查看状态
+        memset(pParam->graphicsBuffers[!pParam->bufferIndex], 0, PAGE * WIDTH);
+        TIM_Cmd(TIM7, ENABLE);
+        return;
+    }
 
 
     memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
@@ -306,8 +315,8 @@ static void actionWhileBrowse(void* argument) {
  */
 static void actionWhileEdit(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
     memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
-
 
     memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
 
@@ -358,7 +367,16 @@ static void actionWhileEdit(void* argument) {
  *
  * @param argument
  */
-static void actionWhileFigureView(void* argument) {}
+static void actionWhileFigureView(void* argument) {
+    UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+    if (pParam->eventGroup & (1 << UI_EVENT_FIGURE_EXIT)) {
+        // 如果是退出图形查看事件，直接返回浏览状态
+        pParam->curState = UI_STATE_ADJUST_BROUWSE;
+        TIM_Cmd(TIM7, DISABLE);
+        return;
+    }
+    graphServIntf.bitToByte(pParam->dotMatrix, pParam->graphicsBuffers[!pParam->bufferIndex]);
+}
 
 
 /**

@@ -65,6 +65,11 @@ typedef struct {
 } RectParamTypeDef; // 矩形参数类型定义
 
 typedef struct {
+    uint8_t x;
+    uint8_t y;
+} PointTypeDef; // 点类型定义
+
+typedef struct {
     void (*drawStar)(uint8_t graphBuffer[PAGE][WIDTH]); // 绘制五角星函数
     void (*drawRoundRect2DotMatrix)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
                                     uint8_t endY, uint8_t radius);                         // 绘制圆角矩形到点阵图像素
@@ -79,6 +84,8 @@ typedef struct {
     RectParamTypeDef (*animateMovingResizingRect)(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0,
                                                   uint8_t ey0, uint8_t ex1, uint8_t ey1, float progress);
 
+    void (*insertNewPoint)(uint8_t new_x, uint8_t new_y, uint8_t pixelDrawCount[HEIGHT][WIDTH]); // 插入新点到队列
+
 } GraphServIntfTypeDef;
 
 
@@ -87,6 +94,8 @@ typedef struct {
 
 /*-------- macro -----------------------------------------------------------------------------------------------------*/
 
+#define MAP_ADC_TO_OLED_X(x) (x * 60 / 4095 + 34) // 将ADC值映射到OLED X坐标范围
+#define MAP_ADC_TO_OLED_Y(y) (y * 60 / 4095 + 2)  // 将ADC值映射到OLED Y坐标范围
 
 
 

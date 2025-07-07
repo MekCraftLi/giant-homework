@@ -62,7 +62,7 @@ SignalAppParamTypeDef signalAppParam; // 信号应用参数
 /* ------- function prototypes ---------------------------------------------------------------------------------------*/
 
 static void uiParamUpdate(UIAppParamTypeDef*);
-inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam) ;
+inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam);
 
 
 
@@ -112,7 +112,7 @@ int main(void) {
     uiAppParam.graphicsBuffers[1] = oledObj.graphicsBufferSub; // 设置辅助图形缓冲区
     inputAppInit(&inputAppParam);
     uiAppInit(&uiAppParam);
-	signalParamUpdate(&signalAppParam);
+    signalParamUpdate(&signalAppParam);
     signalAppInit(&signalAppParam); // 初始化信号应用
 
 
@@ -132,6 +132,10 @@ int main(void) {
 
 
         uiAppLoop(&uiAppParam);
+
+        signalParamUpdate(&signalAppParam); // 更新信号参数
+
+        signalAppLoop(&signalAppParam); // 信号应用循环
 
         // 切换DMA缓冲区索引
         mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
@@ -176,19 +180,24 @@ void TIM6_IRQHandler(void) {
         TIM_Cmd(TIM6, ENABLE);
     }
 }
-uint16_t debugDMA23Remain;
-uint16_t debugDMA24Remain;
+
 void TIM7_IRQHandler(void) {
     if (TIM_GetITStatus(TIM7, TIM_IT_Update)) {
         TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
         DMA_Cmd(DMA1_Channel1, DISABLE);
         DMA_SetCurrDataCounter(DMA1_Channel1, 2);
         DMA_Cmd(DMA1_Channel1, ENABLE);
-		
-		debugDMA23Remain = DMA2_Channel3->CNDTR;
-		debugDMA24Remain = DMA2_Channel4->CNDTR;
 
         ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 启动 ADC（ADC2 自动同步）
+
+#if 1
+        graphServIntf.insertNewPoint(MAP_ADC_TO_OLED_Y(signalAppParam.adcData.adcValues.signal1),
+                                     MAP_ADC_TO_OLED_X(signalAppParam.adcData.adcValues.signal2), uiAppParam.dotMatrix);
+#else
+        ((uint8_t(*)[128])uiAppParam.dotMatrix)[MAP_ADC_TO_OLED_Y(signalAppParam.adcData.adcValues.signal2)]
+                                               [MAP_ADC_TO_OLED_X(signalAppParam.adcData.adcValues.signal1)] +=
+            1; // 在点阵图上设置点
+#endif // DELETE_OLD
     }
 }
 
@@ -255,4 +264,14 @@ inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam) {
     pSignalAppParam->signalInfo[1].amp   = uiAppParam.signalInfo[1].amp;   // 更新信号2幅度
     pSignalAppParam->signalInfo[0].phase = uiAppParam.signalInfo[0].phase; // 更新信号1相位
     pSignalAppParam->signalInfo[1].phase = uiAppParam.signalInfo[1].phase; // 更新信号2相位
+    static UIStateEnum lastUIState;
+
+    if (uiAppParam.curState == UI_STATE_ADJUST_BROUWSE && lastUIState == UI_STATE_ADJUST_EDIT) {
+        // 如果当前状态不是图形查看状态，并且触发了图形查看事件
+        pSignalAppParam->updateFlag = 1; // 设置更新标志位
+    } else {
+        pSignalAppParam->updateFlag = 0; // 清除更新标志位
+    }
+
+    lastUIState = uiAppParam.curState;
 }
