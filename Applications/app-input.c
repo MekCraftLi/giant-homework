@@ -100,9 +100,9 @@ void inputAppLoop(void* argument) {
         pParam->event    = INPUT_EVENT_ENCODER_MOVE_NEGATIVE;
         lastEncoderValue = pParam->encoderValue; // 更新编码器值
     } else {
-		pParam->key0Pressed = lastKey0State = 0;
-		pParam->key1Pressed = lastKey1State = 0;
-        pParam->event = INPUT_EVENT_NONE; // 无事件
+        pParam->key0Pressed = lastKey0State = 0;
+        pParam->key1Pressed = lastKey1State = 0;
+        pParam->event                       = INPUT_EVENT_NONE; // 无事件
     }
 }
 

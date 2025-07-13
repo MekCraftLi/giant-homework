@@ -19,6 +19,8 @@
 
 #include "graph-service.h"
 #include <math.h>
+#include <string.h>
+
 
 
 
@@ -48,8 +50,10 @@ static void drawLine(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t x0, uint8_t y0, u
 static void drawStarDot(uint8_t dotMatrix[HEIGHT][WIDTH], float centerX, float centerY, float radius);
 static void bitToByte(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]);
 static void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
-                                    uint8_t endY, uint8_t radius);
+                                    uint8_t endY, uint8_t radius, uint8_t);
+#if 0
 static void drawStar(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]);
+#endif
 static void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH]);
 static void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY,
                                 uint8_t endX, uint8_t endY);
@@ -57,7 +61,8 @@ static void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t font[16], uint
 RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0, uint8_t ey0,
                                            uint8_t ex1, uint8_t ey1, float progress);
 static void insertNewPoint(uint8_t new_x, uint8_t new_y, uint8_t pixelDrawCount[HEIGHT][WIDTH]);
-
+static void blendImagesWithSineScroll(uint8_t imageA[PAGE][WIDTH], uint8_t imageB[PAGE][WIDTH], uint8_t shift,
+                                      uint8_t direction, uint8_t result[PAGE][WIDTH]);
 
 
 
@@ -138,17 +143,20 @@ GraphServIntfTypeDef graphServIntf = {
     .printStringOnBuffer       = printStringOnBuffer,
     .animateMovingResizingRect = animateMovingResizingRect,
     .insertNewPoint            = insertNewPoint,
+    .blendImagesWithSineScroll = blendImagesWithSineScroll,
 };
 
 // 字体
 FontTypeDef font[] = {
-    {'0', 9, 6, (uint8_t*)font016x8},    {'1', 9, 6, (uint8_t*)font116x8}, {'.', 2, 4, (uint8_t*)fontDot16x8},
-    {'2', 9, 6, (uint8_t*)font216x8},    {'3', 9, 6, (uint8_t*)font316x8}, {'4', 9, 6, (uint8_t*)font416x8},
-    {'5', 9, 7, (uint8_t*)font516x8},    {'6', 9, 6, (uint8_t*)font616x8}, {'7', 9, 6, (uint8_t*)font716x8},
-    {'8', 9, 6, (uint8_t*)font816x8},    {'9', 9, 6, (uint8_t*)font916x8}, {'k', 9, 5, (uint8_t*)fontk16x8},
-    {'H', 16, 7, (uint8_t*)fontH16x8},   {'z', 5, 5, (uint8_t*)fontz16x8}, {'V', 9, 8, (uint8_t*)fontV16x8},
-    {'°', 8, 5, (uint8_t*)fontDeg16x8},  // 度符号
-    {'*', 8, 5, (uint8_t*)fontStar16x8}, // 星号
+    {'0', 9, 6, (uint8_t*)font016x8},    {'1', 9, 6, (uint8_t*)font116x8},
+    {'.', 2, 4, (uint8_t*)fontDot16x8},  {'2', 9, 6, (uint8_t*)font216x8},
+    {'3', 9, 6, (uint8_t*)font316x8},    {'4', 9, 6, (uint8_t*)font416x8},
+    {'5', 9, 7, (uint8_t*)font516x8},    {'6', 9, 6, (uint8_t*)font616x8},
+    {'7', 9, 6, (uint8_t*)font716x8},    {'8', 9, 6, (uint8_t*)font816x8},
+    {'9', 9, 6, (uint8_t*)font916x8},    {'k', 9, 5, (uint8_t*)fontk16x8},
+    {'H', 16, 7, (uint8_t*)fontH16x8},   {'z', 5, 5, (uint8_t*)fontz16x8},
+    {'V', 9, 8, (uint8_t*)fontV16x8},    {(uint16_t)"°"[0], 8, 5, (uint8_t*)fontDeg16x8}, // 度符号
+    {'*', 8, 5, (uint8_t*)fontStar16x8},                                                  // 星号
 };
 
 static PointTypeDef points[MAX_POINTS]; // 点阵图点存储
@@ -167,11 +175,11 @@ static PointTypeDef points[MAX_POINTS]; // 点阵图点存储
  * @param y1
  */
 static void drawLine(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
-    int dx  = (x1 - x0) > 0 ? (x1 - x0) : (x0 - x1);
-    int dy  = (y1 - y0) > 0 ? (y0 - y1) : (y1 - y0);
-    int sx  = x0 < x1 ? 1 : -1;
-    int sy  = y0 < y1 ? 1 : -1;
-    int err = dx + dy;
+    uint8_t dx  = (x1 - x0) > 0 ? (x1 - x0) : (x0 - x1);
+    uint8_t dy  = (y1 - y0) > 0 ? (y0 - y1) : (y1 - y0);
+    uint8_t sx  = x0 < x1 ? 1 : -1;
+    uint8_t sy  = y0 < y1 ? 1 : -1;
+    uint8_t err = dx + dy;
 
     while (1) {
         // 在合法范围内设置像素点
@@ -182,7 +190,7 @@ static void drawLine(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t x0, uint8_t y0, u
         if (x0 == x1 && y0 == y1)
             break;
 
-        int e2 = 2 * err;
+        uint8_t e2 = 2 * err;
         if (e2 >= dy) {
             err += dy;
             x0 += sx;
@@ -225,13 +233,10 @@ static void bitToByte(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE
     for (uint16_t col = 0; col < WIDTH; col++) {
         for (uint16_t page = 0; page < PAGE; page++) {
             uint8_t byte = 0;
-            for (int bit = 0; bit < 8; bit++) {
-                int y = page * 8 + bit;
+            for (uint8_t bit = 0; bit < 8; bit++) {
+                uint8_t y = page * 8 + bit;
                 if (y < HEIGHT && dotMatrix[y][col]) {
                     byte |= (1 << bit); // bit0对应页顶部像素
-                }
-                if (page >= 7) {
-                    byte = 0;
                 }
             }
             graphBuffer[page][col] = byte;
@@ -239,6 +244,7 @@ static void bitToByte(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE
     }
 }
 
+#if 0
 /**
  * @brief 绘制五角星
  *
@@ -253,19 +259,20 @@ void drawStar(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]
     drawStarDot(dotMatrix, centerX, centerY, radius);
     bitToByte(dotMatrix, graphBuffer);
 }
+#endif
 
 /**
  * @brief 点阵中绘制圆角矩形
  *
- * @param dotMatrix
- * @param startX
- * @param startY
- * @param endX
- * @param endY
- * @param radius
+ * @param dotMatrix 点阵图像素数组
+ * @param startX 起始X坐标
+ * @param startY 起始Y坐标
+ * @param endX 结束X坐标
+ * @param endY 结束Y坐标
+ * @param radius 圆角半径
  */
 void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
-                             uint8_t endY, uint8_t radius) {
+                             uint8_t endY, uint8_t radius, uint8_t padding) {
 
 
     // 逐行绘制
@@ -292,9 +299,22 @@ void drawRoundRect2DotMatrix(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, u
             lightUpToX      = endX - xOffset;
         }
 
-        for (uint8_t x = lightUpFromX; x <= lightUpToX; x++) {
+        if (padding) {
 
-            dotMatrix[y][x] = 1; // 设置点阵图像素为1
+            for (uint8_t x = lightUpFromX; x <= lightUpToX; x++) {
+
+                dotMatrix[y][x] = 1; // 设置点阵图像素为1
+            }
+        } else {
+            // 如果不需要填充，则只绘制边框
+            if (y == startY || y == endY) {
+                for (uint8_t x = lightUpFromX; x <= lightUpToX; x++) {
+                    dotMatrix[y][x] = 1; // 设置点阵图像素为1
+                }
+            } else {
+                dotMatrix[y][lightUpFromX] = 1; // 左边框
+                dotMatrix[y][lightUpToX]   = 1; // 右边框
+            }
         }
     }
 }
@@ -318,6 +338,17 @@ void InverBufferWithMask(uint8_t mask[HEIGHT][WIDTH], uint8_t buffer[PAGE][WIDTH
     }
 }
 
+/**
+ * @brief 在图形缓冲区中在一定范围内居中打印字符串
+ *
+ * @param buffer 图形缓冲区
+ * @param str 要打印的字符串
+ * @param startX // 打印起始X坐标
+ * @param startY // 打印起始Y坐标
+ * @param endX // 打印结束X坐标
+ * @param endY // 打印结束Y坐标
+ * @note 字符串会在指定范围内水平和垂直居中对齐
+ */
 void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t startX, uint8_t startY, uint8_t endX,
                          uint8_t endY) {
     uint8_t totalWidth  = 0; // 当前字符串总宽度
@@ -368,9 +399,18 @@ void printStringOnBuffer(uint8_t buffer[PAGE][WIDTH], const char* str, uint8_t s
 }
 
 
+/**
+ * @brief 在图形缓冲区中打印单个字符
+ *
+ * @param x 左下角X坐标
+ * @param y 左下角Y坐标
+ * @param fontByte 字符对应的字模数据
+ * @param buffer 图形缓冲区
+ */
 void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t fontByte[16], uint8_t buffer[8][128]) {
-    if (x > 120 || y > 63)
+    if (x > 120 || y > 63) {
         return; // 越界检查
+	}
 
     uint8_t page      = y / 8;     // 起始页（从下往上）
     uint8_t bitOffset = 8 - y % 8; // 像素行偏移（不为0说明跨页）
@@ -401,6 +441,21 @@ void printCharOnBuffer(uint8_t x, uint8_t y, const uint8_t fontByte[16], uint8_t
     }
 }
 
+
+/**
+ * @brief 平滑动画过渡矩形位置和大小
+ *
+ * @param sx0 起始矩形左上角X坐标
+ * @param sy0 起始矩形左上角Y坐标
+ * @param sx1 起始矩形右下角X坐标
+ * @param sy1 起始矩形右下角Y坐标
+ * @param ex0 结束矩形左上角X坐标
+ * @param ey0 结束矩形左上角Y坐标
+ * @param ex1 结束矩形右下角X坐标
+ * @param ey1 结束矩形右下角Y坐标
+ * @param progress 动画进度 [0, 1]，0表示起始状态，1表示结束状态
+ * @return RectParamTypeDef
+ */
 RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1, uint8_t sy1, uint8_t ex0, uint8_t ey0,
                                            uint8_t ex1, uint8_t ey1, float progress) {
     RectParamTypeDef r;
@@ -439,15 +494,22 @@ RectParamTypeDef animateMovingResizingRect(uint8_t sx0, uint8_t sy0, uint8_t sx1
     float h           = (sh + (eh - sh) * posFactor) * scaleFactor;
 
     // 当前矩形
-    r.x0              = (int)(cx - w / 2.0f);
-    r.y0              = (int)(cy - h / 2.0f);
-    r.x1              = (int)(cx + w / 2.0f);
-    r.y1              = (int)(cy + h / 2.0f);
+    r.x0              = (uint8_t)(cx - w / 2.0f);
+    r.y0              = (uint8_t)(cy - h / 2.0f);
+    r.x1              = (uint8_t)(cx + w / 2.0f);
+    r.y1              = (uint8_t)(cy + h / 2.0f);
 
     return r;
 }
 
 
+/**
+ * @brief 点阵队列中插入新点
+ *
+ * @param new_y
+ * @param new_x
+ * @param pixelDrawCount
+ */
 void insertNewPoint(uint8_t new_y, uint8_t new_x, uint8_t pixelDrawCount[HEIGHT][WIDTH]) {
     static uint16_t count;
     static uint16_t head = 0; // 队列头指针
@@ -473,4 +535,43 @@ void insertNewPoint(uint8_t new_y, uint8_t new_x, uint8_t pixelDrawCount[HEIGHT]
     // 增加新点计数
 
     pixelDrawCount[new_y][new_x]++;
+}
+
+/**
+ * @brief 使用正弦滚动效果混合两张图像
+ *
+ * @param imageA 第一张图像
+ * @param imageB 第二张图像
+ * @param ratio 混合比例，范围从 0.0 到 1.0
+ * @param direction 滚动方向，0 表示向左，1 表示向右
+ * @param result 混合后的结果图像
+ */
+static void blendImagesWithSineScroll(uint8_t imageA[PAGE][WIDTH], uint8_t imageB[PAGE][WIDTH], uint8_t shift,
+                                      uint8_t direction, uint8_t result[PAGE][WIDTH]) {
+
+    for (uint8_t row = 0; row < PAGE; row++) {
+        if (direction == 0) // 向左滑动：A 向左退，B 从右入
+        {
+            uint8_t partA = WIDTH - shift;
+            uint8_t partB = shift;
+
+            if (partA > 0) {
+                memcpy(&result[row][0], &imageA[row][shift], partA);
+            }
+            if (partB > 0) {
+                memcpy(&result[row][partA], &imageB[row][0], partB);
+            }
+        } else // 向右滑动：A 向右退，B 从左入
+        {
+            uint8_t partB = shift;
+            uint8_t partA = WIDTH - shift;
+
+            if (partB > 0) {
+                memcpy(&result[row][0], &imageB[row][WIDTH - shift], partB);
+            }
+            if (partA > 0) {
+                memcpy(&result[row][partB], &imageA[row][0], partA);
+            }
+        }
+    }
 }

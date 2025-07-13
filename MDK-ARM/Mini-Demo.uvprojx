@@ -479,6 +479,11 @@
               <FileType>1</FileType>
               <FilePath>..\Services\graph-service.c</FilePath>
             </File>
+            <File>
+              <FileName>controller-service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Services\controller-service.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

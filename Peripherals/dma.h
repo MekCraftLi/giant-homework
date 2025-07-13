@@ -98,7 +98,7 @@ typedef struct {
     DMAErrCode (*init)(DMAObjTypeDef* dmaObj, DMA_Channel_TypeDef* channel, uint32_t priority);
     DMAErrCode (*setSorce)(DMAObjTypeDef*, uint32_t srcAddr, DMASizeEnum srcSize, uint16_t srcLen);
     DMAErrCode (*setSorceCycle)(DMAObjTypeDef*, uint32_t srcAddr, DMASizeEnum srcSize, uint16_t srcLen);
-    DMAErrCode (*setDest)(DMAObjTypeDef*, uint32_t dstAddr, DMASizeEnum, uint8_t dstLen);
+    DMAErrCode (*setDest)(DMAObjTypeDef*, uint32_t dstAddr, DMASizeEnum, uint16_t dstLen);
     DMAErrCode (*start)(DMAObjTypeDef* dmaObj);
     DMAErrCode (*stop)(DMAObjTypeDef* dmaObj);
     DMAErrCode (*reset)(DMAObjTypeDef* dmaObj);

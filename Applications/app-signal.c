@@ -175,7 +175,7 @@ void generateSineWave512(uint16_t* buf, float freq, float amplitude, float phase
         float value  = sinf(angle) + 1; // 范围：-1 ~ +1
 
         // 幅度调整为 0~amplitude，然后加上 offset
-        float scaled = value * (amplitude / 3.3f) * DAC_RESOLUTION / 2 * 3.2f / 3.3f;
+        float scaled = value * (amplitude / 3.3f) * DAC_RESOLUTION / 2 * 3.3f / 3.3f;
 
         // 限制范围到 0~4095
         if (scaled < 0)

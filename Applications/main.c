@@ -33,6 +33,19 @@
 
 /* ------- typedef ---------------------------------------------------------------------------------------------------*/
 
+struct {
+    struct {
+        float systemTime;     // 系统时间
+        float mainLoopTime;   // 主循环时间
+        float uiLoopTime;     // UI循环时间
+        float inputLoopTime;  // 输入循环时间
+        float signalLoopTime; // 信号循环时间
+    } timeInfo;               // 时间信息
+
+    SoftTimerHandle mainLoopTimer; // 主循环定时器句柄
+
+    uint8_t errCnt; // 错误计数
+} debugInfo;        // 调试信息结构体
 
 
 
@@ -51,8 +64,6 @@
 
 /* ------- variables -------------------------------------------------------------------------------------------------*/
 
-uint16_t debug_errCnt;
-float mainLoopTime = 0.0f; // 主循环时间
 static OLEDObjTypeDef oledObj;
 UIAppParamTypeDef uiAppParam;         // UI应用参数
 InputAppParamTypeDef inputAppParam;   // 输入应用参数
@@ -81,8 +92,6 @@ int main(void) {
     // TIM对象
     TIMObjTypeDef timFlashOLED;
 
-    float mainLoopStartTime = 0.0f; // 主循环开始时间
-
 
 
 
@@ -90,6 +99,8 @@ int main(void) {
 
     // 初始化时间服务
     timeServIntf.servInit();
+
+    debugInfo.mainLoopTimer = timeServIntf.softTimerRegister(); // 注册主循环定时器
 
     // 初始化OLED对象
     while (oledIntf.init(&oledObj) != OLED_SUCCESS)
@@ -110,6 +121,7 @@ int main(void) {
 
     uiAppParam.graphicsBuffers[0] = oledObj.graphicsBuffer;    // 设置图形缓冲区
     uiAppParam.graphicsBuffers[1] = oledObj.graphicsBufferSub; // 设置辅助图形缓冲区
+
     inputAppInit(&inputAppParam);
     uiAppInit(&uiAppParam);
     signalParamUpdate(&signalAppParam);
@@ -121,105 +133,27 @@ int main(void) {
     /* ----- main loop -------------------------------------------------------*/
 
     while (1) {
-        mainLoopStartTime = timeServIntf.getGlobalTime(); // 获取主循环开始时间
+        debugInfo.timeInfo.systemTime = timeServIntf.getGlobalTime();
 
 
         // 调用应用
         inputAppLoop(&inputAppParam); // 输入应用循环
 
+
+
         // 参数更新
         uiParamUpdate(&uiAppParam);
 
-
         uiAppLoop(&uiAppParam);
+
+
 
         signalParamUpdate(&signalAppParam); // 更新信号参数
 
         signalAppLoop(&signalAppParam); // 信号应用循环
 
         // 切换DMA缓冲区索引
-        mainLoopTime = timeServIntf.getGlobalTime() - mainLoopStartTime; // 计算主循环时间
-    }
-}
-
-
-/**
- * @brief DMA1通道6中断处理函数
- *
- * @return void
- */
-void DMA1_Channel6_IRQHandler(void) {
-    if (DMA_GetITStatus(DMA1_IT_TC6)) {     // 检查DMA1通道6传输完成中断
-        DMA_ClearITPendingBit(DMA1_IT_TC6); // 清除中断标志
-        DMA_Cmd(DMA1_Channel6, DISABLE);    // 禁用DMA通道6
-        I2C_DMACmd(I2C1, DISABLE);
-    }
-}
-
-
-/**
- * @brief TIM6中断处理函数
- *
- * @return void
- */
-void TIM6_IRQHandler(void) {
-    if (TIM_GetITStatus(TIM6, TIM_IT_Update)) {
-        TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
-
-        // 将准备好的数据转运到缓冲区
-        if (uiAppParam.bufferIndex == 0) {
-            memcpy(oledObj.iic->txBuffer, uiAppParam.graphicsBuffers[1], OLED_WIDTH * OLED_HEIGHT);
-        } else if (uiAppParam.bufferIndex == 1) {
-            memcpy(oledObj.iic->txBuffer, uiAppParam.graphicsBuffers[0], OLED_WIDTH * OLED_HEIGHT);
-        }
-
-        DMA1_Channel6->CNDTR = 1024;
-
-        I2C_DMACmd(I2C1, ENABLE);
-        DMA_Cmd(DMA1_Channel6, ENABLE);
-        TIM_Cmd(TIM6, ENABLE);
-    }
-}
-
-void TIM7_IRQHandler(void) {
-    if (TIM_GetITStatus(TIM7, TIM_IT_Update)) {
-        TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
-        DMA_Cmd(DMA1_Channel1, DISABLE);
-        DMA_SetCurrDataCounter(DMA1_Channel1, 2);
-        DMA_Cmd(DMA1_Channel1, ENABLE);
-
-        ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 启动 ADC（ADC2 自动同步）
-
-#if 1
-        graphServIntf.insertNewPoint(MAP_ADC_TO_OLED_Y(signalAppParam.adcData.adcValues.signal1),
-                                     MAP_ADC_TO_OLED_X(signalAppParam.adcData.adcValues.signal2), uiAppParam.dotMatrix);
-#else
-        ((uint8_t(*)[128])uiAppParam.dotMatrix)[MAP_ADC_TO_OLED_Y(signalAppParam.adcData.adcValues.signal2)]
-                                               [MAP_ADC_TO_OLED_X(signalAppParam.adcData.adcValues.signal1)] +=
-            1; // 在点阵图上设置点
-#endif // DELETE_OLD
-    }
-}
-
-void EXTI9_5_IRQHandler(void) {
-    if (EXTI_GetITStatus(EXTI_Line5)) {     // 检查外部中断线5
-        EXTI_ClearITPendingBit(EXTI_Line5); // 清除中断标志
-
-        float keyUpdateTime = timeServIntf.getElapsedTime(inputAppParam.key0Timer);
-        if (keyUpdateTime > 0.7f) {
-            inputAppParam.key0Pressed = 1;
-        }
-    }
-}
-
-void EXTI15_10_IRQHandler(void) {
-    if (EXTI_GetITStatus(EXTI_Line15)) {     // 检查外部中断线15
-        EXTI_ClearITPendingBit(EXTI_Line15); // 清除中断标志
-
-        float keyUpdateTime = timeServIntf.getElapsedTime(inputAppParam.key1Timer);
-        if (keyUpdateTime > 0.7f) {
-            inputAppParam.key1Pressed = 1;
-        }
+        debugInfo.timeInfo.mainLoopTime = timeServIntf.getElapsedTime(debugInfo.mainLoopTimer); // 获取主循环时间
     }
 }
 
@@ -257,6 +191,11 @@ inline static void uiParamUpdate(UIAppParamTypeDef* pUIAppParam) {
     }
 }
 
+/**
+ * @brief 信号参数更新函数
+ *
+ * @param pSignalAppParam
+ */
 inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam) {
     pSignalAppParam->signalInfo[0].freq  = uiAppParam.signalInfo[0].freq;  // 更新信号1频率
     pSignalAppParam->signalInfo[1].freq  = uiAppParam.signalInfo[1].freq;  // 更新信号2频率
@@ -274,4 +213,99 @@ inline static void signalParamUpdate(SignalAppParamTypeDef* pSignalAppParam) {
     }
 
     lastUIState = uiAppParam.curState;
+}
+
+
+
+/**
+ * @brief DMA1通道6中断处理函数, 用于在发送完一帧数据后停止DMA
+ *
+ * @return void
+ */
+void DMA1_Channel6_IRQHandler(void) {
+    if (DMA_GetITStatus(DMA1_IT_TC6)) {     // 检查DMA1通道6传输完成中断
+        DMA_ClearITPendingBit(DMA1_IT_TC6); // 清除中断标志
+        DMA_Cmd(DMA1_Channel6, DISABLE);    // 禁用DMA通道6
+        I2C_DMACmd(I2C1, DISABLE);
+    }
+}
+
+
+/**
+ * @brief TIM6中断处理函数, 固定30Hz频率刷新OLED屏幕
+ *
+ * @return void
+ */
+void TIM6_IRQHandler(void) {
+    if (TIM_GetITStatus(TIM6, TIM_IT_Update)) {
+        TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
+
+        // 将准备好的数据转运到缓冲区
+        if (uiAppParam.bufferIndex == 0) {
+            memcpy(oledObj.iic->txBuffer, uiAppParam.graphicsBuffers[1], OLED_WIDTH * OLED_HEIGHT);
+        } else if (uiAppParam.bufferIndex == 1) {
+            memcpy(oledObj.iic->txBuffer, uiAppParam.graphicsBuffers[0], OLED_WIDTH * OLED_HEIGHT);
+        }
+
+        DMA1_Channel6->CNDTR = 1024;
+
+        I2C_DMACmd(I2C1, ENABLE);
+        DMA_Cmd(DMA1_Channel6, ENABLE);
+        TIM_Cmd(TIM6, ENABLE);
+    }
+}
+
+/**
+ * @brief TIM7中断处理函数, 500Hz采样ADC数据
+ *
+ * @return void
+ */
+void TIM7_IRQHandler(void) {
+    if (TIM_GetITStatus(TIM7, TIM_IT_Update)) {
+        TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
+        DMA_Cmd(DMA1_Channel1, DISABLE);
+        DMA_SetCurrDataCounter(DMA1_Channel1, 2);
+        DMA_Cmd(DMA1_Channel1, ENABLE);
+
+        ADC_SoftwareStartConvCmd(ADC1, ENABLE); // 启动 ADC（ADC2 自动同步）
+
+#if 1
+        graphServIntf.insertNewPoint(MAP_ADC_TO_OLED_Y(signalAppParam.adcData.adcValues.signal1),
+                                     MAP_ADC_TO_OLED_X(signalAppParam.adcData.adcValues.signal2), uiAppParam.dotMatrix);
+#else
+        ((uint8_t(*)[128])uiAppParam.dotMatrix)[MAP_ADC_TO_OLED_Y(signalAppParam.adcData.adcValues.signal2)]
+                                               [MAP_ADC_TO_OLED_X(signalAppParam.adcData.adcValues.signal1)] +=
+            1; // 在点阵图上设置点
+#endif // DELETE_OLD
+    }
+}
+
+/**
+ * @brief KEY0中断处理函数
+ *
+ */
+void EXTI9_5_IRQHandler(void) {
+    if (EXTI_GetITStatus(EXTI_Line5)) {     // 检查外部中断线5
+        EXTI_ClearITPendingBit(EXTI_Line5); // 清除中断标志
+
+        float keyUpdateTime = timeServIntf.getElapsedTime(inputAppParam.key0Timer);
+        if (keyUpdateTime > 0.3f) {
+            inputAppParam.key0Pressed = 1;
+        }
+    }
+}
+
+/**
+ *@brief KEY1中断处理函数
+ *
+ */
+void EXTI15_10_IRQHandler(void) {
+    if (EXTI_GetITStatus(EXTI_Line15)) {     // 检查外部中断线15
+        EXTI_ClearITPendingBit(EXTI_Line15); // 清除中断标志
+
+        float keyUpdateTime = timeServIntf.getElapsedTime(inputAppParam.key1Timer);
+        if (keyUpdateTime > 0.3f) {
+            inputAppParam.key1Pressed = 1;
+        }
+    }
 }

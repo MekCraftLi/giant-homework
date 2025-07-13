@@ -25,6 +25,7 @@
 
 /*-------- includes --------------------------------------------------------------------------------------------------*/
 
+#include "../Services/controller-service.h"
 #include "../Services/time-service.h"
 #include <stdint.h>
 
@@ -96,6 +97,19 @@ typedef struct {
     float elapsed;                      // 已经经过的时间
 } UISelDispAnimDataTypeDef;
 
+// UI切换动画
+typedef struct {
+    float elapsed;  // 已经经过的时间
+    float duration; // 动画持续时间
+    enum {
+        UI_LEFT_TO_RIGHT,          // 从左到右
+        UI_RIGHT_TO_LEFT,          // 从右到左
+    } direction;                   // 动画方向
+    PIDControllerTypeDef shiftPID; // 位移PID控制器
+    uint8_t shift;                 // 位移值
+
+} UISwitchAnimDataTypeDef; // UI切换动画数据类型定义
+
 #ifndef SINGAL_TYPE_DEF
 #define SINGAL_TYPE_DEF
 typedef struct {
@@ -117,9 +131,12 @@ typedef struct {
 
     SignalInfoTypeDef signalInfo[2]; // 信号信息
 
-    UISelDispInfoTypeDef selDispInfo;     // 选择信息显示数据
-    UISelDispAnimDataTypeDef animateData; // 浏览选择动画数据
-    SoftTimerHandle browseAnimateTimer;   // 浏览动画定时器句柄
+    UISelDispInfoTypeDef selDispInfo;       // 选择信息显示数据
+    UISelDispAnimDataTypeDef animateData;   // 浏览选择动画数据
+    SoftTimerHandle browseAnimateTimer;     // 浏览动画定时器句柄
+    UISwitchAnimDataTypeDef switchAnimData; // UI切换动画数据
+    SoftTimerHandle switchAnimateTimer;     // UI切换动画定时器句柄
+    uint8_t UISwitchBuffer[2][PAGE][WIDTH]; // UI切换缓冲区
 } UIAppParamTypeDef;
 
 

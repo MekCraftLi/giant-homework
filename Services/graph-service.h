@@ -50,8 +50,10 @@
 
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
+
+
 typedef struct {
-    uint8_t character;
+    uint16_t character;
     uint8_t height;
     uint8_t width;
     uint8_t* fontByte;
@@ -72,7 +74,7 @@ typedef struct {
 typedef struct {
     void (*drawStar)(uint8_t graphBuffer[PAGE][WIDTH]); // 绘制五角星函数
     void (*drawRoundRect2DotMatrix)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
-                                    uint8_t endY, uint8_t radius);                         // 绘制圆角矩形到点阵图像素
+                                    uint8_t endY, uint8_t radius, uint8_t padding);        // 绘制圆角矩形到点阵图像素
     void (*bitToByte)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t graphBuffer[PAGE][WIDTH]); // 点阵图像素转换为字节数组
     void (*drawStarDot)(uint8_t dotMatrix[HEIGHT][WIDTH], float centerX, float centerY, float radius); // 绘制五角星点阵
     void (*drawLine)(uint8_t dotMatrix[HEIGHT][WIDTH], uint8_t startX, uint8_t startY, uint8_t endX,
@@ -85,6 +87,8 @@ typedef struct {
                                                   uint8_t ey0, uint8_t ex1, uint8_t ey1, float progress);
 
     void (*insertNewPoint)(uint8_t new_x, uint8_t new_y, uint8_t pixelDrawCount[HEIGHT][WIDTH]); // 插入新点到队列
+    void (*blendImagesWithSineScroll)(uint8_t imageA[PAGE][WIDTH], uint8_t imageB[PAGE][WIDTH], uint8_t shift,
+                                      uint8_t direction, uint8_t result[PAGE][WIDTH]);
 
 } GraphServIntfTypeDef;
 
@@ -94,8 +98,8 @@ typedef struct {
 
 /*-------- macro -----------------------------------------------------------------------------------------------------*/
 
-#define MAP_ADC_TO_OLED_X(x) (x * 60 / 4095 + 34) // 将ADC值映射到OLED X坐标范围
-#define MAP_ADC_TO_OLED_Y(y) (y * 60 / 4095 + 2)  // 将ADC值映射到OLED Y坐标范围
+#define MAP_ADC_TO_OLED_X(x) (x * 55 / 4095 + 36) // 将ADC值映射到OLED X坐标范围
+#define MAP_ADC_TO_OLED_Y(y) (y * 55 / 4095 + 4)  // 将ADC值映射到OLED Y坐标范围
 
 
 

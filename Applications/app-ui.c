@@ -17,11 +17,12 @@
 
 /* ------- includes --------------------------------------------------------------------------------------------------*/
 
+#include "../Services/controller-service.h"
 #include "../Services/graph-service.h"
+#include "../Services/time-service.h"
 #include "app-ui.h"
 #include <stdio.h>
 #include <string.h>
-
 
 
 
@@ -54,6 +55,7 @@
 
 /* ------- macro -----------------------------------------------------------------------------------------------------*/
 
+// 限幅自增, 最大选取不超过第6个索引
 #define UI_SELECTED_GOTO_NEXT(x)                                                                                       \
     do {                                                                                                               \
         x++;                                                                                                           \
@@ -62,6 +64,7 @@
         }                                                                                                              \
     } while (0);
 
+// 限幅自减, 最小选取不小于第0个索引
 #define UI_SELECTED_GOTO_PREV(x)                                                                                       \
     do {                                                                                                               \
         if (x == 0) {                                                                                                  \
@@ -81,7 +84,6 @@ static void actionWhileEdit(void* argument);
 static void actionWhileFigureView(void* argument);
 
 static void browseAnimate(void* argument);
-static void singalInfoDisplay(void* argument);
 
 static void updateSignal(void* argument);
 
@@ -109,17 +111,17 @@ static UIStateTransitionTypeDef uiStateMachineList[] = {
 // UI选择信息显示数据
 static UISelDispInfoTypeDef uiSelInfoDispList[] = {
     // 信号1频率选择数据
-    {{SIGNAL_1_FREQ}, {32, 17, 76, 29, 3}},
+    {SIGNAL_1_FREQ, {32, 17, 76, 29, 3}},
     // 信号2频率选择数据
-    {{SIGNAL_2_FREQ}, {80, 17, 126, 29, 3}},
+    {SIGNAL_2_FREQ, {80, 17, 126, 29, 3}},
     // 信号1幅度选择数据
-    {{SIGNAL_1_AMP}, {32, 33, 76, 45, 3}},
+    {SIGNAL_1_AMP, {32, 33, 76, 45, 3}},
     // 信号2幅度选择数据
-    {{SIGNAL_2_AMP}, {80, 33, 126, 45, 3}},
+    {SIGNAL_2_AMP, {80, 33, 126, 45, 3}},
     // 信号1相位选择数据
-    {{SIGNAL_1_PHASE}, {32, 49, 76, 61, 3}},
+    {SIGNAL_1_PHASE, {32, 49, 76, 61, 3}},
     // 信号2相位选择数据
-    {{SIGNAL_2_PHASE}, {80, 49, 126, 61, 3}},
+    {SIGNAL_2_PHASE, {80, 49, 126, 61, 3}},
 };
 
 
@@ -180,17 +182,10 @@ const uint8_t img[1024] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 
-
-
-
 // 点阵图像素数据
 static uint8_t dotMatrix[HEIGHT][WIDTH] = {0};
 
 static uint8_t strBuffer[6][8];
-
-float debugTimeMeasure;
-
-SoftTimerHandle debugTimer;
 
 
 /* ------- function implement ----------------------------------------------------------------------------------------*/
@@ -207,17 +202,21 @@ void uiAppInit(void* argument) {
     memcpy(pParam->graphicsBuffers[0], img, sizeof(img)); // 初始化图形缓冲区
 
 
-    debugTimer                       = timeServIntf.softTimerRegister();
+    pParam->browseAnimateTimer       = timeServIntf.softTimerRegister(); // 注册浏览动画定时器
+    pParam->switchAnimateTimer       = timeServIntf.softTimerRegister(); // 注册切换动画定时器
 
-    pParam->browseAnimateTimer       = timeServIntf.softTimerRegister();
     pParam->eventGroup               = 0;                                       // 初始化事件为无
     pParam->curState                 = UI_STATE_ADJUST_BROUWSE;                 // 初始状态为浏览状态
     pParam->selectIndex              = SIGNAL_1_FREQ;                           // 初始选择索引为信号1频率
     pParam->animateData.pCurSelInfo  = &uiSelInfoDispList[pParam->selectIndex]; // 设置当前选择信息
     pParam->animateData.pNextSelInfo = &uiSelInfoDispList[pParam->selectIndex + 1];
-    pParam->animateData.duration     = 0.3f;      // 动画持续时间
+    pParam->animateData.duration     = 0.3f; // 动画持续时间
+    pParam->switchAnimData.duration  = 1.5f; // 切换动画持续时间
+    pParam->switchAnimData.elapsed   = 10.0f;
     pParam->dotMatrix                = dotMatrix; // 设置点阵图像素
-    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 30, 16, 79, 32, 5);
+    pParam->switchAnimData.shift     = 0;
+    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 30, 16, 79, 32, 5, 0);
+    ctrlServIntf.pidInit(&pParam->switchAnimData.shiftPID, 0.7f, 3.85f, 0.00f);
 
     pParam->signalInfo[0].freq  = 1.0f; // 初始化信号1频率
     pParam->signalInfo[1].freq  = 1.0f; // 初始化信号2频率
@@ -236,9 +235,9 @@ void uiAppLoop(void* argument) {
     // 遍历状态机列表，检查每个状态机的条件函数
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
 
+    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
 
-
-    for (int i = 0; i < sizeof(uiStateMachineList) / sizeof(UIStateTransitionTypeDef); i++) {
+    for (uint8_t i = 0; i < sizeof(uiStateMachineList) / sizeof(UIStateTransitionTypeDef); i++) {
         if (uiStateMachineList[i].curState == pParam->curState) {
             if (pParam->eventGroup & (1 << uiStateMachineList[i].event) ||
                 uiStateMachineList[i].event == UI_EVENT_NONE) {
@@ -261,51 +260,92 @@ static void actionWhileBrowse(void* argument) {
 
 
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
-    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
+
     memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
 
     if (pParam->eventGroup & (1 << UI_EVENT_FIGURE_VIEW)) {
-        // 如果是查看图形事件，直接进入图形查看状态
-        memset(pParam->graphicsBuffers[!pParam->bufferIndex], 0, PAGE * WIDTH);
+
+        // 启动采样定时器
         TIM_Cmd(TIM7, ENABLE);
+
+        // 将上一次计算完成的图形缓冲区复制到切换动画用缓冲区
+        memcpy(pParam->UISwitchBuffer[0], pParam->graphicsBuffers[!pParam->bufferIndex],
+               PAGE * WIDTH); // 将当前图形缓冲区复制到备用缓冲区
+
+        // 设置切换动画数据
+        pParam->switchAnimData.elapsed   = 0.0f;             // 重置切换动画计时器
+        pParam->switchAnimData.direction = UI_RIGHT_TO_LEFT; // 设置切换动画方向为从右到左
+        pParam->switchAnimData.shift     = 0;
+
+        timeServIntf.getElapsedTime(pParam->switchAnimateTimer); // 重置计时器
+
+        ctrlServIntf.pidReset(&pParam->switchAnimData.shiftPID); // 重置PID控制器
+
         return;
     }
 
+    if (pParam->switchAnimData.elapsed < pParam->switchAnimData.duration) { // 切换动画未完成
+        // 如果切换动画还没有完成，更新切换动画数据
+        float dt = timeServIntf.getElapsedTime(pParam->switchAnimateTimer); // 获取时间间隔
+        pParam->switchAnimData.elapsed += dt;
 
-    memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
+        ctrlServIntf.pidCalculate(&pParam->switchAnimData.shiftPID, 127, pParam->switchAnimData.shift,
+                                  dt); // 计算PID控制器输出
 
-    sprintf((char*)(strBuffer[0]), "%.1fkHz", pParam->signalInfo[0].freq);
-    sprintf((char*)(strBuffer[1]), "%.1fkHz", pParam->signalInfo[1].freq);
-    sprintf((char*)(strBuffer[2]), "%.1f V", pParam->signalInfo[0].amp);
-    sprintf((char*)(strBuffer[3]), "%.1f V", pParam->signalInfo[1].amp);
-    sprintf((char*)(strBuffer[4]), "%d °", pParam->signalInfo[0].phase);
-    sprintf((char*)(strBuffer[5]), "%d °", pParam->signalInfo[1].phase);
-
-
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[0], 30, 29,
-                                      79, 16);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[1], 76, 29,
-                                      128, 16);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[2], 30, 46,
-                                      79, 32);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[3], 76, 46,
-                                      128, 32);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[4], 30, 62,
-                                      79, 48);
-    graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[5], 76, 62,
-                                      128, 48);
+        pParam->switchAnimData.shift = pParam->switchAnimData.shiftPID.output; // 更新切换动画偏移量
 
 
 
-    browseAnimate(argument); // 浏览动画处理
+        if (pParam->switchAnimData.shift > 127) {
+            pParam->switchAnimData.shift = 127; // 限制偏移量不大于128
+        }
 
-    // 绘制当前选择信息的圆角矩形
-    graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
-                                          pParam->selDispInfo.rectParam.startY, pParam->selDispInfo.rectParam.endX,
-                                          pParam->selDispInfo.rectParam.endY, pParam->selDispInfo.rectParam.radius);
+        graphServIntf.blendImagesWithSineScroll(pParam->UISwitchBuffer[1], pParam->UISwitchBuffer[0],
+                                                pParam->switchAnimData.shift, pParam->switchAnimData.direction,
+                                                pParam->graphicsBuffers[pParam->bufferIndex]);
 
-    // 将圆角矩形区域颜色反转
-    graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
+
+
+        // 计算切换动画位置
+    } else {
+
+
+        memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
+
+        sprintf((char*)(strBuffer[0]), "%.1fkHz", pParam->signalInfo[0].freq);
+        sprintf((char*)(strBuffer[1]), "%.1fkHz", pParam->signalInfo[1].freq);
+        sprintf((char*)(strBuffer[2]), "%.1f V", pParam->signalInfo[0].amp);
+        sprintf((char*)(strBuffer[3]), "%.1f V", pParam->signalInfo[1].amp);
+        sprintf((char*)(strBuffer[4]), "%d °", pParam->signalInfo[0].phase);
+        sprintf((char*)(strBuffer[5]), "%d °", pParam->signalInfo[1].phase);
+
+
+        graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[0], 30,
+                                          29, 79, 16);
+        graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[1], 76,
+                                          29, 128, 16);
+        graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[2], 30,
+                                          46, 79, 32);
+        graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[3], 76,
+                                          46, 128, 32);
+        graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[4], 30,
+                                          62, 79, 48);
+        graphServIntf.printStringOnBuffer(pParam->graphicsBuffers[pParam->bufferIndex], (const char*)strBuffer[5], 76,
+                                          62, 128, 48);
+
+
+
+        browseAnimate(argument); // 浏览动画处理
+
+        // 绘制当前选择信息的圆角矩形
+        graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
+                                              pParam->selDispInfo.rectParam.startY, pParam->selDispInfo.rectParam.endX,
+                                              pParam->selDispInfo.rectParam.endY, pParam->selDispInfo.rectParam.radius,
+                                              1);
+
+        // 将圆角矩形区域颜色反转
+        graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
+    }
 }
 
 /**
@@ -315,7 +355,7 @@ static void actionWhileBrowse(void* argument) {
  */
 static void actionWhileEdit(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
-    pParam->bufferIndex       = !pParam->bufferIndex; // 切换图形缓冲区索引
+
     memset(pParam->dotMatrix, 0, HEIGHT * WIDTH);
 
     memcpy(pParam->graphicsBuffers[pParam->bufferIndex], img, sizeof(img)); // 恢复图形缓冲区
@@ -355,7 +395,7 @@ static void actionWhileEdit(void* argument) {
     // 绘制当前选择信息的圆角矩形
     graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, pParam->selDispInfo.rectParam.startX,
                                           pParam->selDispInfo.rectParam.startY, pParam->selDispInfo.rectParam.endX,
-                                          pParam->selDispInfo.rectParam.endY, pParam->selDispInfo.rectParam.radius);
+                                          pParam->selDispInfo.rectParam.endY, pParam->selDispInfo.rectParam.radius, 1);
 
     // 将圆角矩形区域颜色反转
     graphServIntf.InverBufferWithMask(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
@@ -369,14 +409,63 @@ static void actionWhileEdit(void* argument) {
  */
 static void actionWhileFigureView(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
+
+    // 退出图形查看状态时间
     if (pParam->eventGroup & (1 << UI_EVENT_FIGURE_EXIT)) {
-        // 如果是退出图形查看事件，直接返回浏览状态
-        pParam->curState = UI_STATE_ADJUST_BROUWSE;
+
+        // 启动采样定时器
         TIM_Cmd(TIM7, DISABLE);
+
+        // 将上一次计算完成的图形缓冲区复制到切换动画用缓冲区
+        memcpy(pParam->UISwitchBuffer[1], pParam->graphicsBuffers[!pParam->bufferIndex],
+               PAGE * WIDTH); // 将当前图形缓冲区复制到备用缓冲区
+
+        // 设置切换动画数据
+        pParam->switchAnimData.elapsed   = 0.0f;             // 重置切换动画计时器
+        pParam->switchAnimData.direction = UI_LEFT_TO_RIGHT; // 设置切换动画方向为从右到左
+        pParam->switchAnimData.shift     = 127;              // 设置切换动画偏移量为127
+
+        timeServIntf.getElapsedTime(pParam->switchAnimateTimer); // 重置计时器
+        ctrlServIntf.pidReset(&pParam->switchAnimData.shiftPID); // 重置PID控制器
+
         return;
     }
-    graphServIntf.bitToByte(pParam->dotMatrix, pParam->graphicsBuffers[!pParam->bufferIndex]);
+
+
+    if (pParam->switchAnimData.elapsed < pParam->switchAnimData.duration) {
+        // 如果切换动画还没有完成，更新切换动画数据
+        float dt = timeServIntf.getElapsedTime(pParam->switchAnimateTimer); // 获取时间间隔
+        pParam->switchAnimData.elapsed += dt;
+
+        ctrlServIntf.pidCalculate(&pParam->switchAnimData.shiftPID, 127, pParam->switchAnimData.shift,
+                                  dt); // 计算PID控制器输出
+
+        pParam->switchAnimData.shift = pParam->switchAnimData.shiftPID.output; // 更新切换动画偏移量
+
+        if (pParam->switchAnimData.shift > 127) {
+            pParam->switchAnimData.shift = 0; // 限制偏移量不大于128
+        }
+
+
+        graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 32, 1, 96, 64, 8, 0);
+        graphServIntf.bitToByte(pParam->dotMatrix, pParam->UISwitchBuffer[1]);
+
+        graphServIntf.blendImagesWithSineScroll(pParam->UISwitchBuffer[0], pParam->UISwitchBuffer[1],
+                                                pParam->switchAnimData.shift, pParam->switchAnimData.direction,
+                                                pParam->graphicsBuffers[pParam->bufferIndex]);
+
+        // 计算切换动画位置
+    } else {
+#if 1
+        graphServIntf.drawRoundRect2DotMatrix(pParam->dotMatrix, 32, 0, 96, 63, 8, 0);
+        graphServIntf.bitToByte(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
+#else
+        memset(pParam->dotMatrix, 0x1, HEIGHT * WIDTH); // 清空图形缓冲区
+        graphServIntf.bitToByte(pParam->dotMatrix, pParam->graphicsBuffers[pParam->bufferIndex]);
+#endif
+    }
 }
+
 
 
 /**
@@ -430,6 +519,7 @@ static void browseAnimate(void* argument) {
 
         pParam->animateData.elapsed += timeServIntf.getElapsedTime(pParam->browseAnimateTimer);
 
+
         // 计算过渡比例
         RectParamTypeDef rectParam = graphServIntf.animateMovingResizingRect(
             pParam->animateData.pCurSelInfo->rectParam.startX, pParam->animateData.pCurSelInfo->rectParam.startY,
@@ -457,6 +547,11 @@ static void browseAnimate(void* argument) {
     }
 }
 
+/**
+ * @brief 更新信号信息函数
+ *
+ * @param argument
+ */
 void updateSignal(void* argument) {
     UIAppParamTypeDef* pParam = (UIAppParamTypeDef*)argument;
 

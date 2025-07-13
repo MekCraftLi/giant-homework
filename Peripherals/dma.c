@@ -133,7 +133,7 @@ DMAErrCode init(DMAObjTypeDef* obj, DMA_Channel_TypeDef* channel, uint32_t prior
 DMAErrCode setSorce(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSize, uint16_t srcLen) {
 
     // 检查参数
-    if (srcSize < DMA_SIZE_BYTE || srcSize > DMA_SIZE_WORD || srcLen == 0) {
+    if (srcSize > DMA_SIZE_WORD || srcLen == 0) {
         return DMA_ERR_PARAM;
     }
     // 检查地址是否有效
@@ -160,6 +160,7 @@ DMAErrCode setSorce(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSize, u
 
             obj->CPAR                             = obj->srcAddr; // 外设地址
             obj->CMAR                             = obj->dstAddr; // 内存地址
+			
             DMA_InitStruct.DMA_PeripheralBaseAddr = obj->srcAddr;
             DMA_InitStruct.DMA_MemoryBaseAddr     = obj->dstAddr; // 目的地址
             DMA_InitStruct.DMA_PeripheralInc  = obj->srcLen > 0 ? DMA_PeripheralInc_Enable : DMA_PeripheralInc_Disable;
@@ -217,7 +218,7 @@ DMAErrCode setSorce(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSize, u
  */
 DMAErrCode setSorceCycle(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSize, uint16_t srcLen) {
     // 检查参数
-    if (srcSize < DMA_SIZE_BYTE || srcSize > DMA_SIZE_WORD || srcLen == 0) {
+    if (srcSize > DMA_SIZE_WORD || srcLen == 0) {
         return DMA_ERR_PARAM;
     }
     // 检查地址是否有效
@@ -235,12 +236,18 @@ DMAErrCode setSorceCycle(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSi
     if (obj->dstAddr != NULL) {
         DMA_InitTypeDef DMA_InitStruct;
         if (obj->srcAddrType == DMA_ADDR_TYPE_PERIPHERAL) {
+			
+			
             if (obj->srcLen == 1 || obj->dstLen == 1) {
+				
                 obj->CNDTR = DMA_InitStruct.DMA_BufferSize =
                     obj->srcLen > obj->dstLen ? obj->srcLen : obj->dstLen; // 传输数据长度取源和目的地址的最大长度
+				
             } else {
+				
                 obj->CNDTR = DMA_InitStruct.DMA_BufferSize =
                     obj->srcLen > obj->dstLen ? obj->dstLen : obj->srcLen; // 传输数据长度取源和目的地址的最小长度
+				
             }
 
             obj->CPAR                             = obj->srcAddr; // 外设地址
@@ -259,18 +266,27 @@ DMAErrCode setSorceCycle(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSi
         } else {
             obj->CPAR = obj->dstAddr; // 外设地址
             obj->CMAR = obj->srcAddr; // 内存地址
+			
             if (obj->srcLen == 1 || obj->dstLen == 1) {
+				
                 obj->CNDTR = DMA_InitStruct.DMA_BufferSize =
                     obj->srcLen > obj->dstLen ? obj->srcLen : obj->dstLen; // 传输数据长度取源和目的地址的最大长度
+				
             } else {
+				
                 obj->CNDTR = DMA_InitStruct.DMA_BufferSize =
                     obj->srcLen > obj->dstLen ? obj->dstLen : obj->srcLen; // 传输数据长度取源和目的地址的最小长度
+				
             }
 
             if (obj->dstAddrType == DMA_ADDR_TYPE_MEMORY) {
+				
                 DMA_InitStruct.DMA_M2M = DMA_M2M_Enable; // 内存到内存传输
+				
             } else {
+				
                 DMA_InitStruct.DMA_M2M = DMA_M2M_Disable; // 非内存到内存传输
+				
             }
             DMA_InitStruct.DMA_PeripheralBaseAddr = obj->dstAddr; // 源地址
             DMA_InitStruct.DMA_MemoryBaseAddr     = obj->srcAddr; // 目的地址
@@ -282,6 +298,7 @@ DMAErrCode setSorceCycle(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSi
             DMA_InitStruct.DMA_PeripheralDataSize = obj->dstSize;                               // 目的数据大小
             DMA_InitStruct.DMA_Mode     = obj->cycleMode ? DMA_Mode_Circular : DMA_Mode_Normal; // 循环模式或正常模式
             DMA_InitStruct.DMA_Priority = obj->priority;                                        // 优先级
+			
         }
         // 4.初始化DMA通道
         DMA_Init(obj->channel, &DMA_InitStruct);
@@ -303,7 +320,7 @@ DMAErrCode setSorceCycle(DMAObjTypeDef* obj, uint32_t srcAddr, DMASizeEnum srcSi
 DMAErrCode setDest(DMAObjTypeDef* obj, uint32_t dstAddr, DMASizeEnum dstSize, uint16_t dstLen) {
 
     // 检查参数
-    if (dstSize < DMA_SIZE_BYTE || dstSize > DMA_SIZE_WORD) {
+    if (dstSize > DMA_SIZE_WORD) {
         return DMA_ERR_PARAM;
     }
     if (dstLen == 0) {
@@ -400,6 +417,8 @@ DMAErrCode start(DMAObjTypeDef* obj) {
 
     // 3.使能DMA通道
     DMA_Cmd(obj->channel, ENABLE);
+	
+	return DMA_SUCCESS;
 }
 
 /**

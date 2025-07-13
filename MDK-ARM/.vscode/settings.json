@@ -24,6 +24,7 @@
         "drv-key.h": "c",
         "app-signal.h": "c",
         "dac.h": "c",
-        "adc.h": "c"
+        "adc.h": "c",
+        "controller-service.h": "c"
     }
 }

@@ -1,13 +1,13 @@
 /**
  ***********************************************************************************************************************
- * @file           : drv-oled.h
- * @brief          : OLED的驱动文件
+ * @file           : controller-service.h
+ * @brief          : 控制器计算服务
  * @author         : 李嘉豪
- * @date           : 2025-04-29
+ * @date           : 2025-07-13
  ***********************************************************************************************************************
  * @attention
  *
- * OLED对象具有IIC对象和图形缓冲区两个属性
+ * 用于建造和使用控制器
  *
  ***********************************************************************************************************************
  **/
@@ -17,48 +17,39 @@
 
 /* Define to prevent recursive inclusion -----------------------------------------------------------------------------*/
 
-#ifndef __DRV_OLED_H__
-#define __DRV_OLED_H__
+#ifndef __CONTROLLER_SERVICE_H__
+#define __CONTROLLER_SERVICE_H__
 
 
 
 
 /*-------- includes --------------------------------------------------------------------------------------------------*/
 
-#include "../Protocols/drv-iic.h"
-
-
-
-
-/*-------- define ----------------------------------------------------------------------------------------------------*/
-
-#define OLED_HEIGHT 8
-#define OLED_WIDTH  128
 
 
 
 
 /*-------- typedef ---------------------------------------------------------------------------------------------------*/
 
-typedef enum {
-    OLED_SUCCESS, // OLED驱动函数运行无问题
-    OLED_ERR,     // OLED驱动函数运行有问题
-} OLEDErrCode;
+typedef struct {
+    float kp;
+    float ki;
+    float kd;
+    float integral;     // 积分值
+    float prevErr;      // 上一次误差值
+    float output;       // 输出值
+} PIDControllerTypeDef; // PID控制器类型定义
 
 typedef struct {
-    IICObjTypeDef* iic;
-    uint8_t graphicsBuffer[OLED_HEIGHT][OLED_WIDTH];
-    uint8_t graphicsBufferSub[OLED_HEIGHT][OLED_WIDTH]; // 用于DMA传输时的辅助缓冲区
+    void (*pidInit)(PIDControllerTypeDef* pid, float kp, float ki, float kd);                   // PID控制器初始化函数
+    void (*pidCalculate)(PIDControllerTypeDef* pid, float reference, float feedback, float dt); // PID计算函数
+    void (*pidReset)(PIDControllerTypeDef* pid);                                                // PID控制器重置函数
+} CtrlServIntfTypeDef;
 
-} OLEDObjTypeDef;
 
-typedef struct {
-    OLEDErrCode (*clear)(OLEDObjTypeDef*);
-    OLEDErrCode (*draw)(OLEDObjTypeDef*);
-    OLEDErrCode (*init)(OLEDObjTypeDef*);
-    OLEDErrCode (*fill)(OLEDObjTypeDef*);
-    OLEDErrCode (*cmd)(OLEDObjTypeDef*);
-} OLEDIntfTypeDef;
+
+
+/*-------- define ----------------------------------------------------------------------------------------------------*/
 
 
 
@@ -72,7 +63,7 @@ typedef struct {
 
 /*-------- variables -------------------------------------------------------------------------------------------------*/
 
-extern OLEDIntfTypeDef oledIntf;
+extern CtrlServIntfTypeDef ctrlServIntf;
 
 
 
@@ -83,4 +74,4 @@ extern OLEDIntfTypeDef oledIntf;
 
 
 
-#endif /* __DRV_OLED_H__ */
+#endif /* __CONTROLLER_SERVICE_H__ */

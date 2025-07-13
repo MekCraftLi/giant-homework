@@ -55,6 +55,7 @@
 /* ------- function implement ----------------------------------------------------------------------------------------*/
 
 void dacInit(void) {
+	
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
 
     DAC_InitTypeDef DAC_InitStructure;

@@ -82,8 +82,7 @@ TIMIntfTypeDef timIntf = {
 /* ------- function implement ----------------------------------------------------------------------------------------*/
 
 TIMErrCode timInit(TIMObjTypeDef* timObj, TIM_TypeDef* tim) {
-    uint32_t clk = 0;
-    GET_TIM_CLOCK(tim, clk);    // 获取定时器时钟频率
+
     timObj->tim     = tim;      // 设置定时器外设
     timObj->clkFreq = 72000000; // 设置定时器时钟频率
 
@@ -168,6 +167,7 @@ TIMErrCode timSetFrequency(TIMObjTypeDef* timObj, uint32_t targetFreq) {
 }
 
 TIMErrCode timStart(TIMObjTypeDef* timObj) {
+	
     if (timObj == NULL || timObj->tim == NULL) {
         return TIM_ERR_PARAM; // 无效的定时器对象
     }
@@ -178,9 +178,11 @@ TIMErrCode timStart(TIMObjTypeDef* timObj) {
     TIM_Cmd(timObj->tim, ENABLE); // 启动定时器
 
     return TIM_SUCCESS;
+	
 }
 
 TIMErrCode timStop(TIMObjTypeDef* timObj) {
+	
     if (timObj == NULL || timObj->tim == NULL) {
         return TIM_ERR_PARAM; // 无效的定时器对象
     }
@@ -191,6 +193,7 @@ TIMErrCode timStop(TIMObjTypeDef* timObj) {
     TIM_Cmd(timObj->tim, DISABLE); // 停止定时器
 
     return TIM_SUCCESS;
+	
 }
 
 TIMErrCode timSetCallback(TIMObjTypeDef* timObj, void (*callback)(void)) {

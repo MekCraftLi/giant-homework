@@ -100,10 +100,10 @@ IICErrCode iicInit(IICObjTypeDef* iicObj, IICImplTypeEnum type, GPIOPortEnum SDA
         return IIC_ERR_PARAM;
     }
 
-    if (!(iicObj->txBuffer = (uint8_t*)malloc(txBufferSize))) {
+    if ((iicObj->txBuffer = (uint8_t*)malloc(txBufferSize)) == NULL) {
         return IIC_ERR_MEM_ALLOC_FAIL;
     }
-    if (!(iicObj->rxBuffer = (uint8_t*)malloc(rxBufferSize))) {
+    if ((iicObj->rxBuffer = (uint8_t*)malloc(rxBufferSize)) == NULL) {
         return IIC_ERR_MEM_ALLOC_FAIL;
     }
 
@@ -349,6 +349,9 @@ IICErrCode iicSend(IICObjTypeDef* iicObj) {
 
         /* 硬件IIC通信 */
         float startTime;
+		
+		// 防止warnning
+		(void)startTime;
 #if TIMEOUT
 
         float timeDiff;
